@@ -69,7 +69,7 @@ func main() {
 			break
 		}
 
-		fmt.Fprintf(out, "%s %s\n", p.FullName, cfg.CtaText)
+		fmt.Fprintf(out, "\n%s %s\n", p.FullName, cfg.CtaText)
 		for wd, date := range weekdays {
 			ok, err := stdInConfirmf(" --> %s:%s", wd.String(), date.Format("2006-01-02"))
 			if err != nil {
@@ -107,7 +107,7 @@ func main() {
 		return
 	}
 
-	fmt.Fprintln(out, "> unassigned weekdays:")
+	fmt.Fprint(out, "\n------------------------\n> unassigned weekdays: ", len(weekdays), "\n------------------------\n")
 	for wd, date := range weekdays {
 		fmt.Fprintln(out, " -->", wd.String(), ":", date.Format("2006-01-02"))
 	}
