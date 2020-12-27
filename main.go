@@ -10,14 +10,17 @@ import (
 	"time"
 
 	"golang.org/x/oauth2"
-
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
 )
 
+const appName = "gcaler"
+
 var (
-	out = os.Stdout
-	in  = os.Stdin
+	tokenCacheDir  string
+	tokenCacheFile string
+	out            = os.Stdout
+	in             = os.Stdin
 )
 
 type (
@@ -38,6 +41,11 @@ type (
 		Link     string `json:"link"`
 	}
 )
+
+func init() {
+	tokenCacheDir = filepath.Join(os.Getenv("HOME"), "."+appName)
+	tokenCacheFile = filepath.Join(tokenCacheDir, "access_token.json")
+}
 
 func main() {
 	gopathDir := os.Getenv("GOPATH")
@@ -114,6 +122,11 @@ func main() {
 }
 
 func getToken(cfg *oauth2.Config) (*oauth2.Token, error) {
+	tkn, err := tokenFromCache()
+	if err == nil {
+		return tkn, nil
+	}
+
 	authURL := cfg.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
 	fmt.Fprintf(out, "> visit the link: %v\n", authURL)
 
@@ -122,7 +135,42 @@ func getToken(cfg *oauth2.Config) (*oauth2.Token, error) {
 		return nil, err
 	}
 
-	return cfg.Exchange(oauth2.NoContext, code)
+	tkn, err = cfg.Exchange(context.Background(), code)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := cacheToken(tkn); err != nil {
+		return nil, err
+	}
+
+	return tkn, nil
+}
+
+func tokenFromCache() (*oauth2.Token, error) {
+	f, err := os.Open(tokenCacheFile)
+	if err != nil {
+		return nil, err
+	}
+
+	token := oauth2.Token{}
+	if err = json.NewDecoder(f).Decode(&token); err != nil {
+		return nil, err
+	}
+	return &token, nil
+}
+
+func cacheToken(tkn *oauth2.Token) error {
+	if err := os.MkdirAll(tokenCacheDir, os.ModePerm); err != nil {
+		return err
+	}
+
+	cacheFile, err := os.Create(tokenCacheFile)
+	if err != nil {
+		return err
+	}
+
+	return json.NewEncoder(cacheFile).Encode(tkn)
 }
 
 func getConfig(gobinDir string) (*Config, error) {

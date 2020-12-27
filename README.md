@@ -17,6 +17,8 @@ This guide implies you have successfully installed and configured [golang](https
     - follow **Step 1** from the [guide](https://developers.google.com/google-apps/calendar/quickstart/go#step_1_turn_on_the_api_name)
     - copy `client_secret.json` to the project root
 
+After the first run the google access token will cached in `$HOME/.gcaler/access_token.json`
+
 2. Configure your app
 
 ```bash
