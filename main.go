@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -19,8 +20,12 @@ const appName = "gcaler"
 var (
 	tokenCacheDir  string
 	tokenCacheFile string
-	out            = os.Stdout
-	in             = os.Stdin
+
+	configFile      string
+	credentialsFile string
+
+	out = os.Stdout
+	in  = os.Stdin
 )
 
 type (
@@ -43,14 +48,20 @@ type (
 )
 
 func init() {
+	wd, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+
 	tokenCacheDir = filepath.Join(os.Getenv("HOME"), "."+appName)
 	tokenCacheFile = filepath.Join(tokenCacheDir, "access_token.json")
+
+	flag.StringVar(&configFile, "config", filepath.Join(wd, "config.json"), "Config file name: absolute or relative path")
+	flag.StringVar(&credentialsFile, "credentials", filepath.Join(wd, "client_secret.json"), "Credentials file name: absolute or relative path")
+	flag.Parse()
 }
 
 func main() {
-	gopathDir := os.Getenv("GOPATH")
-	gobinDir := filepath.Join(gopathDir, "bin")
-
 	weekdays, err := getWeekdays()
 	if err != nil {
 		panic(err)
@@ -60,12 +71,12 @@ func main() {
 		return
 	}
 
-	cfg, err := getConfig(gobinDir)
+	cfg, err := getConfig(configFile)
 	if err != nil {
 		panic(err)
 	}
 
-	calSrv, err := getCalendarService(gobinDir)
+	calSrv, err := getCalendarService(credentialsFile)
 	if err != nil {
 		panic(err)
 	}
@@ -173,8 +184,8 @@ func cacheToken(tkn *oauth2.Token) error {
 	return json.NewEncoder(cacheFile).Encode(tkn)
 }
 
-func getConfig(gobinDir string) (*Config, error) {
-	b, err := ioutil.ReadFile(filepath.Join(gobinDir, "config.json"))
+func getConfig(configFile string) (*Config, error) {
+	b, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		return nil, err
 	}
@@ -218,8 +229,8 @@ func getWeekdays() (map[time.Weekday]time.Time, error) {
 	return weekdays, nil
 }
 
-func getCalendarService(gobinDir string) (*calendar.Service, error) {
-	b, err := ioutil.ReadFile(filepath.Join(gobinDir, "client_secret.json"))
+func getCalendarService(credentialsFile string) (*calendar.Service, error) {
+	b, err := ioutil.ReadFile(credentialsFile)
 	if err != nil {
 		return nil, err
 	}

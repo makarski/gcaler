@@ -28,9 +28,16 @@ cp config.json.dist config.json
 # 2: modify config.json contents with your data
 ```
 
-3. Run `make install` - this will compile the binary and copy executable `gcaler` file alongside with `config.json` and `client_secret.json` to your `$GOPATH/bin` directory.
+3. Run `go install`
 
 4. Run `gcaler` to start using the cli tool
+
+```bash
+$ gcaler -help
+
+# provide custom configs location; defauls are in the bin working dir
+$ gcaler -config /path/to/config.json -credentials /path/to/google/credentials.json
+```
 
 License
 -------
