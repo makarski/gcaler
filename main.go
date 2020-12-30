@@ -1,18 +1,23 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
+
+	"github.com/makarski/gcaler/planweek"
 )
 
 const appName = "gcaler"
@@ -62,15 +67,6 @@ func init() {
 }
 
 func main() {
-	weekdays, err := getWeekdays()
-	if err != nil {
-		panic(err)
-	}
-
-	if weekdays == nil {
-		return
-	}
-
 	cfg, err := getConfig(configFile)
 	if err != nil {
 		panic(err)
@@ -81,55 +77,116 @@ func main() {
 		panic(err)
 	}
 
-	summary := []string{}
-
-	for _, p := range cfg.People {
-		if len(weekdays) == 0 {
-			break
-		}
-
-		fmt.Fprintf(out, "\n%s %s\n", p.FullName, cfg.CtaText)
-		for wd, date := range weekdays {
-			ok, err := stdInConfirmf(" --> %s:%s", wd.String(), date.Format("2006-01-02"))
-			if err != nil {
-				panic(err)
-			}
-
-			if !ok {
-				continue
-			}
-
-			event := getEvent(p, date, cfg.StartTime, cfg.EndTime)
-			if _, err := calSrv.Events.Insert(cfg.CalID, event).Do(); err != nil {
-				panic(err)
-			}
-
-			delete(weekdays, wd)
-			summary = append(
-				summary,
-				fmt.Sprintf(
-					"--> %s : %s (%s)",
-					p.FullName,
-					date.Format("2006-01-02"),
-					wd.String(),
-				))
-			break
-		}
+	assignments, err := Assignees(cfg.People).schedule()
+	if err != nil {
+		panic(err)
 	}
 
-	fmt.Fprint(out, "\n----------------------\n> assigned weekdays: ", len(summary), "\n----------------------\n")
+	summary := []string{}
+	for _, assignment := range assignments {
+		event := getEvent(Person(assignment.Assignee), assignment.Date, cfg.StartTime, cfg.EndTime)
+		if _, err := calSrv.Events.Insert(cfg.CalID, event).Do(); err != nil {
+			panic(err)
+		}
+
+		summary = append(
+			summary,
+			fmt.Sprintf(
+				"> %s : %s (%s)",
+				assignment.Assignee.FullName,
+				assignment.Date.Format("2006-01-02"),
+				assignment.Date.Weekday().String(),
+			))
+	}
+
+	fmt.Fprintf(
+		out,
+		`
+----------------------
+assigned weekdays: %d
+----------------------
+`,
+		len(summary),
+	)
+
 	for _, item := range summary {
 		fmt.Fprintln(out, item)
 	}
+}
 
-	if len(weekdays) == 0 {
-		return
+type (
+	// Assignees is a list of people to be assigned to shifts
+	Assignees []Person
+
+	// Assignment contains a pair - Assigned Person and Date of the shift
+	Assignment struct {
+		Date     time.Time
+		Assignee Person
+	}
+)
+
+func (a Assignees) pick(i int) (*Person, error) {
+	if i > len(a)-1 {
+		return nil, fmt.Errorf("no assignee found by index: %d", i)
+	}
+	return &a[i], nil
+}
+
+func (a Assignees) print(w io.Writer) {
+	for i, person := range a {
+		fmt.Fprintf(w, "  > %d: %s\n", i, person.FullName)
+	}
+}
+
+func (a Assignees) schedule() ([]Assignment, error) {
+	startDate, err := stdIn("> Enter the kickoff date: ")
+	if err != nil {
+		return nil, err
 	}
 
-	fmt.Fprint(out, "\n------------------------\n> unassigned weekdays: ", len(weekdays), "\n------------------------\n")
-	for wd, date := range weekdays {
-		fmt.Fprintln(out, " -->", wd.String(), ":", date.Format("2006-01-02"))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	dates, err := planweek.Plan(ctx, startDate)
+	if err != nil {
+		return nil, err
 	}
+
+	assignments := make([]Assignment, 0)
+
+	for date := range dates {
+		pickCtaTxt := bytes.NewBufferString(fmt.Sprintf("> Pick up an assignee number for %s:\n\n", date.Format("2006-01-02")))
+		a.print(pickCtaTxt)
+
+		in, err := stdIn(pickCtaTxt.String())
+		if err != nil {
+			return nil, err
+		}
+
+		pickedIndex, err := strconv.Atoi(in)
+		if err != nil {
+			return nil, err
+		}
+
+		assignedPerson, err := a.pick(pickedIndex)
+		if err != nil {
+			return nil, err
+		}
+
+		assignment := Assignment{Date: date, Assignee: *assignedPerson}
+		assignments = append(assignments, assignment)
+
+		ok, err := stdInConfirm("> Do you want to continue assigning?")
+		if err != nil {
+			return nil, err
+		}
+
+		if !ok {
+			break
+		}
+	}
+
+	return assignments, nil
 }
 
 func getToken(cfg *oauth2.Config) (*oauth2.Token, error) {
@@ -139,9 +196,9 @@ func getToken(cfg *oauth2.Config) (*oauth2.Token, error) {
 	}
 
 	authURL := cfg.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-	fmt.Fprintf(out, "> visit the link: %v\n", authURL)
+	fmt.Fprintf(out, "> Visit the link: %v\n", authURL)
 
-	code, err := stdIn("> enter auth. code:")
+	code, err := stdIn("> Enter auth. code: ")
 	if err != nil {
 		return nil, err
 	}
@@ -194,41 +251,6 @@ func getConfig(configFile string) (*Config, error) {
 	return &cfg, json.Unmarshal(b, &cfg)
 }
 
-func getWeekdays() (map[time.Weekday]time.Time, error) {
-	in, err := stdIn("> enter week start date {YYYY-mm-dd}:")
-	if err != nil {
-		return nil, err
-	}
-
-	sd, err := time.Parse("2006-01-02", in)
-	if err != nil {
-		return nil, err
-	}
-
-	if sd.Weekday() < time.Monday || sd.Weekday() > time.Friday {
-		fmt.Fprintln(os.Stdout, "> events are not published on the Weekend. Exit.")
-		return nil, nil
-	}
-
-	y, w := sd.ISOWeek()
-	ok, err := stdInConfirmf("> calendar will be filled for week: %d-%d from %s. Proceed?", y, w, sd.Weekday().String())
-	if err != nil {
-		return nil, err
-	}
-
-	if !ok {
-		return nil, nil
-	}
-
-	weekdays := map[time.Weekday]time.Time{}
-	for wd := sd.Weekday(); wd < time.Saturday; wd++ {
-		weekdays[wd] = sd
-		sd = sd.Add(time.Hour * 24)
-	}
-
-	return weekdays, nil
-}
-
 func getCalendarService(credentialsFile string) (*calendar.Service, error) {
 	b, err := ioutil.ReadFile(credentialsFile)
 	if err != nil {
@@ -262,27 +284,17 @@ func getEvent(p Person, date time.Time, start, end string) *calendar.Event {
 			DateTime: endTime,
 		},
 		Attendees: []*calendar.EventAttendee{
-			&calendar.EventAttendee{Email: p.Email, ResponseStatus: "accepted"},
+			{Email: p.Email, ResponseStatus: "accepted"},
 		},
 		Transparency: "transparent",
 	}
 }
 
-func stdInf(format string, args ...interface{}) {
-	txt := fmt.Sprintf(format, args...)
-	stdIn(txt)
-}
-
 func stdIn(txt string) (string, error) {
-	fmt.Fprint(os.Stdout, txt+" ")
+	fmt.Fprint(os.Stdout, txt)
 	var in string
 	_, err := fmt.Fscanln(os.Stdin, &in)
 	return in, err
-}
-
-func stdInConfirmf(format string, args ...interface{}) (bool, error) {
-	txt := fmt.Sprintf(format, args...)
-	return stdInConfirm(txt)
 }
 
 func stdInConfirm(txt string) (bool, error) {

@@ -1,4 +1,4 @@
-module gcaler
+module github.com/makarski/gcaler
 
 go 1.15
 
