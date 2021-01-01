@@ -18,6 +18,7 @@ import (
 	"google.golang.org/api/calendar/v3"
 
 	"github.com/makarski/gcaler/google/auth"
+	gcal "github.com/makarski/gcaler/google/calendar"
 	"github.com/makarski/gcaler/planweek"
 )
 
@@ -37,19 +38,11 @@ var (
 type (
 	// Config struct describes the app config
 	Config struct {
-		CalID     string   `json:"cal_id"`
-		StartTime string   `json:"start_time"`
-		EndTime   string   `json:"end_time"`
-		CtaText   string   `json:"cta_text"`
-		People    []Person `json:"people"`
-	}
-
-	// Person describes a config Person entry
-	Person struct {
-		FullName string `json:"full_name"`
-		Email    string `json:"email"`
-		Phone    string `json:"phone"`
-		Link     string `json:"link"`
+		CalID     string          `json:"cal_id"`
+		StartTime string          `json:"start_time"`
+		EndTime   string          `json:"end_time"`
+		CtaText   string          `json:"cta_text"`
+		People    []gcal.Assignee `json:"people"`
 	}
 )
 
@@ -79,7 +72,10 @@ func main() {
 	}
 
 	gToken := auth.NewGToken(credCfg, tokenCacheFile, tokenCacheDir)
-	calSrv, err := getCalendarService(context.Background(), gToken, credCfg)
+	gCalendar := gcal.NewGCalerndar(&gToken, credCfg)
+
+	ctx := context.Background()
+	calSrv, err := gCalendar.CalendarService(ctx, handleAuthConsent)
 	if err != nil {
 		panic(err)
 	}
@@ -91,7 +87,7 @@ func main() {
 
 	summary := []string{}
 	for _, assignment := range assignments {
-		event := getEvent(Person(assignment.Assignee), assignment.Date, cfg.StartTime, cfg.EndTime)
+		event := gCalendar.CalendarEvent(assignment.Assignee, assignment.Date, cfg.StartTime, cfg.EndTime)
 		if _, err := calSrv.Events.Insert(cfg.CalID, event).Do(); err != nil {
 			panic(err)
 		}
@@ -123,16 +119,16 @@ assigned weekdays: %d
 
 type (
 	// Assignees is a list of people to be assigned to shifts
-	Assignees []Person
+	Assignees []gcal.Assignee
 
 	// Assignment contains a pair - Assigned Person and Date of the shift
 	Assignment struct {
-		Date     time.Time
-		Assignee Person
+		Date time.Time
+		gcal.Assignee
 	}
 )
 
-func (a Assignees) pick(i int) (*Person, error) {
+func (a Assignees) pick(i int) (*gcal.Assignee, error) {
 	if i > len(a)-1 {
 		return nil, fmt.Errorf("no assignee found by index: %d", i)
 	}
@@ -218,35 +214,6 @@ func getCredentials(credentialsFile string) (*oauth2.Config, error) {
 	}
 
 	return google.ConfigFromJSON(b, calendar.CalendarScope)
-}
-
-func getCalendarService(ctx context.Context, gToken auth.GToken, cfg *oauth2.Config) (*calendar.Service, error) {
-	tok, err := gToken.Get(ctx, handleAuthConsent)
-	if err != nil {
-		return nil, err
-	}
-
-	return calendar.New(cfg.Client(ctx, tok))
-}
-
-func getEvent(p Person, date time.Time, start, end string) *calendar.Event {
-	startTime := date.Format("2006-01-02") + "T" + start
-	endTime := date.Format("2006-01-02") + "T" + end
-
-	return &calendar.Event{
-		Summary:     fmt.Sprintf("On-Call: %s\n%s", p.FullName, p.Email),
-		Description: fmt.Sprintf("phone: %s, link: %s", p.Phone, p.Link),
-		Start: &calendar.EventDateTime{
-			DateTime: startTime,
-		},
-		End: &calendar.EventDateTime{
-			DateTime: endTime,
-		},
-		Attendees: []*calendar.EventAttendee{
-			{Email: p.Email, ResponseStatus: "accepted"},
-		},
-		Transparency: "transparent",
-	}
 }
 
 func stdIn(txt string) (string, error) {
