@@ -17,6 +17,7 @@ import (
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
 
+	"github.com/makarski/gcaler/google/auth"
 	"github.com/makarski/gcaler/planweek"
 )
 
@@ -72,7 +73,13 @@ func main() {
 		panic(err)
 	}
 
-	calSrv, err := getCalendarService(credentialsFile)
+	credCfg, err := getCredentials(credentialsFile)
+	if err != nil {
+		panic(err)
+	}
+
+	gToken := auth.NewGToken(credCfg, tokenCacheFile, tokenCacheDir)
+	calSrv, err := getCalendarService(context.Background(), gToken, credCfg)
 	if err != nil {
 		panic(err)
 	}
@@ -189,56 +196,9 @@ func (a Assignees) schedule() ([]Assignment, error) {
 	return assignments, nil
 }
 
-func getToken(cfg *oauth2.Config) (*oauth2.Token, error) {
-	tkn, err := tokenFromCache()
-	if err == nil {
-		return tkn, nil
-	}
-
-	authURL := cfg.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
+func handleAuthConsent(authURL string) (string, error) {
 	fmt.Fprintf(out, "> Visit the link: %v\n", authURL)
-
-	code, err := stdIn("> Enter auth. code: ")
-	if err != nil {
-		return nil, err
-	}
-
-	tkn, err = cfg.Exchange(context.Background(), code)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := cacheToken(tkn); err != nil {
-		return nil, err
-	}
-
-	return tkn, nil
-}
-
-func tokenFromCache() (*oauth2.Token, error) {
-	f, err := os.Open(tokenCacheFile)
-	if err != nil {
-		return nil, err
-	}
-
-	token := oauth2.Token{}
-	if err = json.NewDecoder(f).Decode(&token); err != nil {
-		return nil, err
-	}
-	return &token, nil
-}
-
-func cacheToken(tkn *oauth2.Token) error {
-	if err := os.MkdirAll(tokenCacheDir, os.ModePerm); err != nil {
-		return err
-	}
-
-	cacheFile, err := os.Create(tokenCacheFile)
-	if err != nil {
-		return err
-	}
-
-	return json.NewEncoder(cacheFile).Encode(tkn)
+	return stdIn("> Enter auth. code: ")
 }
 
 func getConfig(configFile string) (*Config, error) {
@@ -251,23 +211,22 @@ func getConfig(configFile string) (*Config, error) {
 	return &cfg, json.Unmarshal(b, &cfg)
 }
 
-func getCalendarService(credentialsFile string) (*calendar.Service, error) {
+func getCredentials(credentialsFile string) (*oauth2.Config, error) {
 	b, err := ioutil.ReadFile(credentialsFile)
 	if err != nil {
 		return nil, err
 	}
 
-	cfg, err := google.ConfigFromJSON(b, calendar.CalendarScope)
+	return google.ConfigFromJSON(b, calendar.CalendarScope)
+}
+
+func getCalendarService(ctx context.Context, gToken auth.GToken, cfg *oauth2.Config) (*calendar.Service, error) {
+	tok, err := gToken.Get(ctx, handleAuthConsent)
 	if err != nil {
 		return nil, err
 	}
 
-	tok, err := getToken(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	return calendar.New(cfg.Client(context.Background(), tok))
+	return calendar.New(cfg.Client(ctx, tok))
 }
 
 func getEvent(p Person, date time.Time, start, end string) *calendar.Event {
