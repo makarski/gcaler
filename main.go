@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -15,6 +14,7 @@ import (
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
 
+	"github.com/makarski/gcaler/config"
 	"github.com/makarski/gcaler/google/auth"
 	gcal "github.com/makarski/gcaler/google/calendar"
 	"github.com/makarski/gcaler/staff"
@@ -33,17 +33,6 @@ var (
 	in  = os.Stdin
 )
 
-type (
-	// Config struct describes the app config
-	Config struct {
-		CalID     string           `json:"cal_id"`
-		StartTime string           `json:"start_time"`
-		EndTime   string           `json:"end_time"`
-		CtaText   string           `json:"cta_text"`
-		People    []staff.Assignee `json:"people"`
-	}
-)
-
 func init() {
 	wd, err := os.Getwd()
 	if err != nil {
@@ -59,7 +48,7 @@ func init() {
 }
 
 func main() {
-	cfg, err := getConfig(configFile)
+	cfg, err := config.Load(configFile)
 	if err != nil {
 		panic(err)
 	}
@@ -126,16 +115,6 @@ assigned weekdays: %d
 func handleAuthConsent(authURL string) (string, error) {
 	fmt.Fprintf(out, "> Visit the link: %v\n", authURL)
 	return stdIn(bytes.NewBufferString("> Enter auth. code: "))
-}
-
-func getConfig(configFile string) (*Config, error) {
-	b, err := ioutil.ReadFile(configFile)
-	if err != nil {
-		return nil, err
-	}
-
-	var cfg Config
-	return &cfg, json.Unmarshal(b, &cfg)
 }
 
 func getCredentials(credentialsFile string) (*oauth2.Config, error) {
