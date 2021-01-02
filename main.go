@@ -87,36 +87,40 @@ func main() {
 		panic(err)
 	}
 
-	summary := []string{}
+	summary := summaryTxtBuffer(len(assignments))
+
 	for _, assignment := range assignments {
 		event := gCalendar.CalendarEvent(assignment.Assignee, assignment.Date, cfg.StartTime, cfg.EndTime)
 		if _, err := calSrv.Events.Insert(cfg.CalID, event).Do(); err != nil {
 			panic(err)
 		}
 
-		summary = append(
+		fmt.Fprintf(
 			summary,
-			fmt.Sprintf(
-				"> %s : %s (%s)",
-				assignment.Assignee.FullName,
-				assignment.Date.Format("2006-01-02"),
-				assignment.Date.Weekday().String(),
-			))
+			"> %s : %s (%s)\n",
+			assignment.Assignee.FullName,
+			assignment.Date.Format("2006-01-02"),
+			assignment.Date.Weekday().String(),
+		)
 	}
 
+	if _, err := io.Copy(out, summary); err != nil {
+		panic(err)
+	}
+}
+
+func summaryTxtBuffer(countAssgnmts int) *bytes.Buffer {
+	var summary bytes.Buffer
 	fmt.Fprintf(
-		out,
+		&summary,
 		`
 ----------------------
 assigned weekdays: %d
 ----------------------
 `,
-		len(summary),
+		countAssgnmts,
 	)
-
-	for _, item := range summary {
-		fmt.Fprintln(out, item)
-	}
+	return &summary
 }
 
 func handleAuthConsent(authURL string) (string, error) {
