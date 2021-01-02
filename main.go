@@ -6,13 +6,8 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
-
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
-	"google.golang.org/api/calendar/v3"
 
 	"github.com/makarski/gcaler/config"
 	"github.com/makarski/gcaler/google/auth"
@@ -53,12 +48,12 @@ func main() {
 		panic(err)
 	}
 
-	credCfg, err := getCredentials(credentialsFile)
+	gToken := auth.NewGToken(credentialsFile, tokenCacheFile, tokenCacheDir)
+	credCfg, err := gToken.Credentials()
 	if err != nil {
 		panic(err)
 	}
 
-	gToken := auth.NewGToken(credCfg, tokenCacheFile, tokenCacheDir)
 	gCalendar := gcal.NewGCalerndar(&gToken, credCfg)
 
 	ctx := context.Background()
@@ -115,15 +110,6 @@ assigned weekdays: %d
 func handleAuthConsent(authURL string) (string, error) {
 	fmt.Fprintf(out, "> Visit the link: %v\n", authURL)
 	return stdIn(bytes.NewBufferString("> Enter auth. code: "))
-}
-
-func getCredentials(credentialsFile string) (*oauth2.Config, error) {
-	b, err := ioutil.ReadFile(credentialsFile)
-	if err != nil {
-		return nil, err
-	}
-
-	return google.ConfigFromJSON(b, calendar.CalendarScope)
 }
 
 func stdIn(buf io.ReadWriter) (string, error) {
