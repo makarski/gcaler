@@ -9,6 +9,7 @@ import (
 	"google.golang.org/api/calendar/v3"
 
 	"github.com/makarski/gcaler/google/auth"
+	"github.com/makarski/gcaler/staff"
 )
 
 // GCalendar is a wrapper for Google Calendar Service
@@ -32,16 +33,8 @@ func (gc GCalendar) CalendarService(ctx context.Context, authHandler auth.Consen
 	return calendar.New(gc.cfg.Client(ctx, tok))
 }
 
-// Assignee describes a config `people` item entry
-type Assignee struct {
-	FullName string `json:"full_name"`
-	Email    string `json:"email"`
-	Phone    string `json:"phone"`
-	Link     string `json:"link"`
-}
-
 // CalendarEvent generates a google calendar event
-func (gc GCalendar) CalendarEvent(a Assignee, date time.Time, start, end string) *calendar.Event {
+func (gc GCalendar) CalendarEvent(a staff.Assignee, date time.Time, start, end string) *calendar.Event {
 	startTime := date.Format("2006-01-02") + "T" + start
 	endTime := date.Format("2006-01-02") + "T" + end
 
