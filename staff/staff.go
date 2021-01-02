@@ -51,13 +51,37 @@ func (a Assignees) print(w io.Writer) {
 	}
 }
 
+func (a Assignees) startDateAndDuration(scanString InputStrProviderFunc) (*time.Time, int, error) {
+	startDate, err := scanString(bytes.NewBufferString("> Enter the kickoff date: "))
+	if err != nil {
+		return nil, 0, err
+	}
+
+	date, err := time.Parse("2006-01-02", startDate)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	durationDays, err := scanString(bytes.NewBufferString("> Enter the number of days to schedule: "))
+	if err != nil {
+		return nil, 0, err
+	}
+
+	days, err := strconv.Atoi(durationDays)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return &date, days, nil
+}
+
 // Schedule returns a slice of Assignment pairs: Assignee to Date
 func (a Assignees) Schedule(
 	ctx context.Context,
 	scanString InputStrProviderFunc,
 	scanBool InputBoolProviderFunc,
 ) ([]Assignment, error) {
-	startDate, err := scanString(bytes.NewBufferString("> Enter the kickoff date: "))
+	startDate, durationDays, err := a.startDateAndDuration(scanString)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +89,7 @@ func (a Assignees) Schedule(
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	dates, err := planweek.Plan(ctx, startDate)
+	dates, err := planweek.Plan(ctx, *startDate, durationDays)
 	if err != nil {
 		return nil, err
 	}
@@ -97,6 +121,12 @@ func (a Assignees) Schedule(
 
 		assignment := Assignment{Date: date, Assignee: *assignedPerson}
 		assignments = append(assignments, assignment)
+
+		// Skip interactive flow control if known for how many days the planning is done,
+		// otherwise ask user every time
+		if durationDays > 0 {
+			continue
+		}
 
 		ok, err := scanBool(bytes.NewBufferString("> Do you want to continue assigning?"))
 		if err != nil {
