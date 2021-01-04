@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/makarski/gcaler/planweek"
@@ -52,7 +53,7 @@ func (a Assignees) print(w io.Writer) {
 }
 
 func (a Assignees) startDateAndDuration(scanString InputStrProviderFunc) (*time.Time, int, error) {
-	startDate, err := scanString(bytes.NewBufferString("> Enter the kickoff date: "))
+	startDate, err := scanString(bytes.NewBufferString("> Enter a kickoff date: "))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -62,7 +63,7 @@ func (a Assignees) startDateAndDuration(scanString InputStrProviderFunc) (*time.
 		return nil, 0, err
 	}
 
-	durationDays, err := scanString(bytes.NewBufferString("> Enter the number of days to schedule: "))
+	durationDays, err := scanString(bytes.NewBufferString("> Enter a number of days to schedule ('-1' to proceed day by day): "))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -94,8 +95,19 @@ func (a Assignees) Schedule(
 		return nil, err
 	}
 
-	assignments := make([]Assignment, 0)
+	if durationDays > 0 {
+		return a.assignBatch(dates, scanString)
+	}
 
+	return a.assignOneByOne(dates, scanString, scanBool)
+}
+
+func (a Assignees) assignOneByOne(
+	dates <-chan time.Time,
+	scanString InputStrProviderFunc,
+	scanBool InputBoolProviderFunc,
+) ([]Assignment, error) {
+	assignments := make([]Assignment, 0)
 	for date := range dates {
 		var pickCtaTxt bytes.Buffer
 		_, err := fmt.Fprintf(&pickCtaTxt, "> Pick up an assignee number for %s:\n\n", date.Format("2006-01-02"))
@@ -122,12 +134,6 @@ func (a Assignees) Schedule(
 		assignment := Assignment{Date: date, Assignee: *assignedPerson}
 		assignments = append(assignments, assignment)
 
-		// Skip interactive flow control if known for how many days the planning is done,
-		// otherwise ask user every time
-		if durationDays > 0 {
-			continue
-		}
-
 		ok, err := scanBool(bytes.NewBufferString("> Do you want to continue assigning?"))
 		if err != nil {
 			return nil, err
@@ -136,6 +142,55 @@ func (a Assignees) Schedule(
 		if !ok {
 			break
 		}
+	}
+
+	return assignments, nil
+}
+
+func (a Assignees) assignBatch(dates <-chan time.Time, scanString InputStrProviderFunc) ([]Assignment, error) {
+	assignments := make([]Assignment, 0)
+
+	var pickCtaTxt bytes.Buffer
+	_, err := fmt.Fprintf(&pickCtaTxt, "> Available Assignees:\n")
+	if err != nil {
+		return nil, err
+	}
+
+	a.print(&pickCtaTxt)
+	pickCtaTxt.WriteString("\n")
+
+	_, err = fmt.Fprintf(&pickCtaTxt, "> Dates to schedule:\n")
+	if err != nil {
+		return nil, err
+	}
+
+	schedule := make([]time.Time, 0)
+
+	for date := range dates {
+		schedule = append(schedule, date)
+		fmt.Fprintln(&pickCtaTxt, "  >", date.Format("2006-01-02 (Mon)"))
+	}
+
+	pickCtaTxt.WriteString("\n> Enter Assignee Sequence by Number (without spaces. ex: 0,1,1,0): ")
+	in, err := scanString(&pickCtaTxt)
+	if err != nil {
+		return nil, err
+	}
+
+	inPicks := strings.Split(strings.TrimSpace(in), ",")
+	for i, inPick := range inPicks {
+		pickedIndex, err := strconv.Atoi(inPick)
+		if err != nil {
+			return nil, err
+		}
+
+		assignedPerson, err := a.pick(pickedIndex)
+		if err != nil {
+			return nil, err
+		}
+
+		assignment := Assignment{Date: schedule[i], Assignee: *assignedPerson}
+		assignments = append(assignments, assignment)
 	}
 
 	return assignments, nil
