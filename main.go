@@ -74,7 +74,7 @@ func main() {
 	summary := summaryTxtBuffer(len(assignments))
 
 	for _, assignment := range assignments {
-		event := gCalendar.CalendarEvent(assignment.Assignee, assignment.Date, cfg.StartTime, cfg.EndTime)
+		event := gCalendar.CalendarEvent(assignment, cfg.StartTime, cfg.EndTime)
 		if _, err := calSrv.Events.Insert(cfg.CalID, event).Do(); err != nil {
 			panic(err)
 		}

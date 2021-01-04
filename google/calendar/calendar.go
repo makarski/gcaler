@@ -3,7 +3,6 @@ package calendar
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"golang.org/x/oauth2"
 	"google.golang.org/api/calendar/v3"
@@ -34,9 +33,9 @@ func (gc GCalendar) CalendarService(ctx context.Context, authHandler auth.Consen
 }
 
 // CalendarEvent generates a google calendar event
-func (gc GCalendar) CalendarEvent(a staff.Assignee, date time.Time, start, end string) *calendar.Event {
-	startTime := date.Format("2006-01-02") + "T" + start
-	endTime := date.Format("2006-01-02") + "T" + end
+func (gc GCalendar) CalendarEvent(a staff.Assignment, start, end string) *calendar.Event {
+	startTime := a.Date.Format("2006-01-02") + "T" + start
+	endTime := a.Date.Format("2006-01-02") + "T" + end
 
 	return &calendar.Event{
 		Summary:     fmt.Sprintf("On-Call: %s\n%s", a.FullName, a.Email),
