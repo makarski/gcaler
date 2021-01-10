@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/makarski/gcaler/planweek"
@@ -48,17 +47,17 @@ func (a Assignees) pick(i int) (*Assignee, error) {
 
 func (a Assignees) print(w io.Writer) {
 	for i, person := range a {
-		fmt.Fprintf(w, "  > %d: %s\n", i, person.FullName)
+		fmt.Fprintf(w, "  * %d: %s\n", i, person.FullName)
 	}
 }
 
-func (a Assignees) startDateAndDuration(scanString InputStrProviderFunc) (*time.Time, int, error) {
+func (a Assignees) startDateAndDuration(scanString InputStrProviderFunc, cfgStartTime string) (*time.Time, int, error) {
 	startDate, err := scanString(bytes.NewBufferString("> Enter a kickoff date: "))
 	if err != nil {
 		return nil, 0, err
 	}
 
-	date, err := time.Parse("2006-01-02", startDate)
+	date, err := time.Parse("2006-01-02T15:04:05-07:00", startDate+"T"+cfgStartTime)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -79,10 +78,11 @@ func (a Assignees) startDateAndDuration(scanString InputStrProviderFunc) (*time.
 // Schedule returns a slice of Assignment pairs: Assignee to Date
 func (a Assignees) Schedule(
 	ctx context.Context,
+	cfgStartTimeTZ string,
 	scanString InputStrProviderFunc,
 	scanBool InputBoolProviderFunc,
 ) ([]Assignment, error) {
-	startDate, durationDays, err := a.startDateAndDuration(scanString)
+	startDate, durationDays, err := a.startDateAndDuration(scanString, cfgStartTimeTZ)
 	if err != nil {
 		return nil, err
 	}
@@ -159,25 +159,25 @@ func (a Assignees) assignBatch(dates <-chan time.Time, scanString InputStrProvid
 	a.print(&pickCtaTxt)
 	pickCtaTxt.WriteString("\n")
 
-	_, err = fmt.Fprintf(&pickCtaTxt, "> Dates to schedule:\n")
+	_, err = fmt.Fprintf(&pickCtaTxt, "> Enter an Assignee for a Date [0..%d]:\n", len(a)-1)
 	if err != nil {
 		return nil, err
 	}
 
 	schedule := make([]time.Time, 0)
+	inPicks := []string{}
 
 	for date := range dates {
 		schedule = append(schedule, date)
-		fmt.Fprintln(&pickCtaTxt, "  >", date.Format("2006-01-02 (Mon)"))
+		fmt.Fprint(&pickCtaTxt, "  * ", date.Format("2006-01-02 (Mon): "))
+		in, err := scanString(&pickCtaTxt)
+		if err != nil {
+			return nil, err
+		}
+
+		inPicks = append(inPicks, in)
 	}
 
-	pickCtaTxt.WriteString("\n> Enter Assignee Sequence by Number (without spaces. ex: 0,1,1,0): ")
-	in, err := scanString(&pickCtaTxt)
-	if err != nil {
-		return nil, err
-	}
-
-	inPicks := strings.Split(strings.TrimSpace(in), ",")
 	for i, inPick := range inPicks {
 		pickedIndex, err := strconv.Atoi(inPick)
 		if err != nil {

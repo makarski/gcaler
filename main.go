@@ -8,6 +8,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
+	"time"
 
 	"github.com/makarski/gcaler/config"
 	"github.com/makarski/gcaler/google/auth"
@@ -48,6 +50,30 @@ func main() {
 		panic(err)
 	}
 
+	if len(cfg.Templates) == 0 {
+		fmt.Fprintln(os.Stdout, "No event templates found. Exit.")
+		os.Exit(0)
+	}
+
+	var stdOutTemplate bytes.Buffer
+	fmt.Fprintf(&stdOutTemplate, "> Select a template [0..%d]\n", len(cfg.Templates)-1)
+
+	for i, template := range cfg.Templates {
+		fmt.Fprintf(&stdOutTemplate, "  * %d: %s\n", i, template.Name)
+	}
+
+	templateChoice, err := stdIn(&stdOutTemplate)
+	if err != nil {
+		panic(err)
+	}
+
+	templateIndex, err := strconv.Atoi(templateChoice)
+	if err != nil {
+		panic(err)
+	}
+
+	template := cfg.Templates[templateIndex]
+
 	gToken := auth.NewGToken(credentialsFile, tokenCacheFile, tokenCacheDir)
 	credCfg, err := gToken.Credentials()
 	if err != nil {
@@ -62,8 +88,9 @@ func main() {
 		panic(err)
 	}
 
-	assignments, err := staff.Assignees(cfg.People).Schedule(
+	assignments, err := staff.Assignees(template.Participants).Schedule(
 		ctx,
+		template.StartTimeTZ,
 		staff.InputStrProviderFunc(stdIn),
 		staff.InputBoolProviderFunc(stdInConfirm),
 	)
@@ -74,17 +101,16 @@ func main() {
 	summary := summaryTxtBuffer(len(assignments))
 
 	for _, assignment := range assignments {
-		event := gCalendar.CalendarEvent(assignment, cfg.StartTime, cfg.EndTime)
-		if _, err := calSrv.Events.Insert(cfg.CalID, event).Do(); err != nil {
+		event := gCalendar.CalendarEvent(assignment, template.EventName, template.Duration)
+		if _, err := calSrv.Events.Insert(template.CalID, event).Do(); err != nil {
 			panic(err)
 		}
 
 		fmt.Fprintf(
 			summary,
-			"> %s : %s (%s)\n",
+			"  * %s: %s\n",
 			assignment.Assignee.FullName,
-			assignment.Date.Format("2006-01-02"),
-			assignment.Date.Weekday().String(),
+			assignment.Date.Format(time.RFC1123),
 		)
 	}
 
