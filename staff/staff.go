@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/makarski/gcaler/planweek"
+	"github.com/makarski/gcaler/userio"
 )
 
 type (
@@ -28,14 +29,6 @@ type (
 		Assignee
 		Date time.Time
 	}
-
-	// InputStrProviderFunc is used to interactively control
-	// the flow of the Schedule func
-	InputStrProviderFunc func(out io.ReadWriter) (string, error)
-
-	// InputBoolProviderFunc is used to interactively control
-	// the flow of the Schedule func
-	InputBoolProviderFunc func(out io.ReadWriter) (bool, error)
 )
 
 func (a Assignees) pick(i int) (*Assignee, error) {
@@ -51,8 +44,8 @@ func (a Assignees) print(w io.Writer) {
 	}
 }
 
-func (a Assignees) startDateAndDuration(scanString InputStrProviderFunc, cfgStartTime string) (*time.Time, int, error) {
-	startDate, err := scanString(bytes.NewBufferString("> Enter a kickoff date: "))
+func (a Assignees) startDateAndDuration(cfgStartTime string) (*time.Time, int, error) {
+	startDate, err := userio.UserIn(bytes.NewBufferString("> Enter a kickoff date: "))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -62,12 +55,7 @@ func (a Assignees) startDateAndDuration(scanString InputStrProviderFunc, cfgStar
 		return nil, 0, err
 	}
 
-	durationDays, err := scanString(bytes.NewBufferString("> Enter a number of days to schedule ('-1' to proceed day by day): "))
-	if err != nil {
-		return nil, 0, err
-	}
-
-	days, err := strconv.Atoi(durationDays)
+	days, err := userio.UserInInt(bytes.NewBufferString("> Enter a number of days to schedule ('-1' to proceed day by day): "))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -79,10 +67,8 @@ func (a Assignees) startDateAndDuration(scanString InputStrProviderFunc, cfgStar
 func (a Assignees) Schedule(
 	ctx context.Context,
 	cfgStartTimeTZ string,
-	scanString InputStrProviderFunc,
-	scanBool InputBoolProviderFunc,
 ) ([]Assignment, error) {
-	startDate, durationDays, err := a.startDateAndDuration(scanString, cfgStartTimeTZ)
+	startDate, durationDays, err := a.startDateAndDuration(cfgStartTimeTZ)
 	if err != nil {
 		return nil, err
 	}
@@ -96,16 +82,14 @@ func (a Assignees) Schedule(
 	}
 
 	if durationDays > 0 {
-		return a.assignBatch(dates, scanString)
+		return a.assignBatch(dates)
 	}
 
-	return a.assignOneByOne(dates, scanString, scanBool)
+	return a.assignOneByOne(dates)
 }
 
 func (a Assignees) assignOneByOne(
 	dates <-chan time.Time,
-	scanString InputStrProviderFunc,
-	scanBool InputBoolProviderFunc,
 ) ([]Assignment, error) {
 	assignments := make([]Assignment, 0)
 	for date := range dates {
@@ -116,12 +100,7 @@ func (a Assignees) assignOneByOne(
 		}
 		a.print(&pickCtaTxt)
 
-		in, err := scanString(&pickCtaTxt)
-		if err != nil {
-			return nil, err
-		}
-
-		pickedIndex, err := strconv.Atoi(in)
+		pickedIndex, err := userio.UserInInt(&pickCtaTxt)
 		if err != nil {
 			return nil, err
 		}
@@ -134,7 +113,7 @@ func (a Assignees) assignOneByOne(
 		assignment := Assignment{Date: date, Assignee: *assignedPerson}
 		assignments = append(assignments, assignment)
 
-		ok, err := scanBool(bytes.NewBufferString("> Do you want to continue assigning?"))
+		ok, err := userio.UserInBool(bytes.NewBufferString("> Do you want to continue assigning?"))
 		if err != nil {
 			return nil, err
 		}
@@ -147,7 +126,7 @@ func (a Assignees) assignOneByOne(
 	return assignments, nil
 }
 
-func (a Assignees) assignBatch(dates <-chan time.Time, scanString InputStrProviderFunc) ([]Assignment, error) {
+func (a Assignees) assignBatch(dates <-chan time.Time) ([]Assignment, error) {
 	assignments := make([]Assignment, 0)
 
 	var pickCtaTxt bytes.Buffer
@@ -170,7 +149,7 @@ func (a Assignees) assignBatch(dates <-chan time.Time, scanString InputStrProvid
 	for date := range dates {
 		schedule = append(schedule, date)
 		fmt.Fprint(&pickCtaTxt, "  * ", date.Format("2006-01-02 (Mon): "))
-		in, err := scanString(&pickCtaTxt)
+		in, err := userio.UserIn(&pickCtaTxt)
 		if err != nil {
 			return nil, err
 		}

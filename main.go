@@ -8,13 +8,13 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"github.com/makarski/gcaler/config"
 	"github.com/makarski/gcaler/google/auth"
 	gcal "github.com/makarski/gcaler/google/calendar"
 	"github.com/makarski/gcaler/staff"
+	"github.com/makarski/gcaler/userio"
 )
 
 const appName = "gcaler"
@@ -27,7 +27,6 @@ var (
 	credentialsFile string
 
 	out = os.Stdout
-	in  = os.Stdin
 )
 
 func init() {
@@ -62,12 +61,9 @@ func main() {
 		fmt.Fprintf(&stdOutTemplate, "  * %d: %s\n", i, template.Name)
 	}
 
-	templateChoice, err := stdIn(&stdOutTemplate)
-	if err != nil {
-		panic(err)
-	}
+	stdOutTemplate.WriteString("\n> Template: ")
 
-	templateIndex, err := strconv.Atoi(templateChoice)
+	templateIndex, err := userio.UserInInt(&stdOutTemplate)
 	if err != nil {
 		panic(err)
 	}
@@ -91,8 +87,6 @@ func main() {
 	assignments, err := staff.Assignees(template.Participants).Schedule(
 		ctx,
 		template.StartTimeTZ,
-		staff.InputStrProviderFunc(stdIn),
-		staff.InputBoolProviderFunc(stdInConfirm),
 	)
 	if err != nil {
 		panic(err)
@@ -135,36 +129,5 @@ assigned weekdays: %d
 
 func handleAuthConsent(authURL string) (string, error) {
 	fmt.Fprintf(out, "> Visit the link: %v\n", authURL)
-	return stdIn(bytes.NewBufferString("> Enter auth. code: "))
-}
-
-func stdIn(buf io.ReadWriter) (string, error) {
-	if _, err := io.Copy(os.Stdout, buf); err != nil {
-		return "", err
-	}
-
-	var in string
-	_, err := fmt.Fscanln(os.Stdin, &in)
-	return in, err
-}
-
-func stdInConfirm(buf io.ReadWriter) (bool, error) {
-	if _, err := buf.Write([]byte(" [y/n]: ")); err != nil {
-		return false, err
-	}
-
-	if _, err := io.Copy(os.Stdout, buf); err != nil {
-		return false, err
-	}
-
-	var in string
-	if _, err := fmt.Fscanln(os.Stdin, &in); err != nil {
-		return false, err
-	}
-
-	if in != "y" {
-		return false, nil
-	}
-
-	return true, nil
+	return userio.UserIn(bytes.NewBufferString("> Enter auth. code: "))
 }
