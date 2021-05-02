@@ -23,6 +23,9 @@ type (
 		StartTimeTZ  string           `toml:"start_time_tz"`
 		Participants []staff.Assignee `toml:"participants"`
 		Duration     time.Duration    `toml:"duration"`
+
+		// Not yet used
+		Recurrence string `toml:"recurrence"`
 	}
 )
 
