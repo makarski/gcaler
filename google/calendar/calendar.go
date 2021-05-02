@@ -2,7 +2,6 @@ package calendar
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"golang.org/x/oauth2"
@@ -41,7 +40,7 @@ func (gc GCalendar) CalendarEvent(a staff.Assignment, eventName string, duration
 	endTime := a.Date.Add(duration).Format(eventDateTimeFormat)
 
 	return &calendar.Event{
-		Summary:     fmt.Sprintf("%s: %s", eventName, a.Email),
+		Summary:     eventName,
 		Description: a.Description,
 		Start: &calendar.EventDateTime{
 			DateTime: startTime,
