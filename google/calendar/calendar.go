@@ -42,7 +42,7 @@ func (gc GCalendar) CalendarEvent(a staff.Assignment, eventName string, duration
 
 	return &calendar.Event{
 		Summary:     fmt.Sprintf("%s: %s", eventName, a.Email),
-		Description: fmt.Sprintf("phone: %s, link: %s", a.Phone, a.Link),
+		Description: a.Description,
 		Start: &calendar.EventDateTime{
 			DateTime: startTime,
 		},
@@ -50,7 +50,7 @@ func (gc GCalendar) CalendarEvent(a staff.Assignment, eventName string, duration
 			DateTime: endTime,
 		},
 		Attendees: []*calendar.EventAttendee{
-			{Email: a.Email, ResponseStatus: "accepted"},
+			{Email: a.Email, ResponseStatus: "needsAction"},
 		},
 		Transparency: "transparent",
 	}

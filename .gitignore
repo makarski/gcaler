@@ -1,3 +1,5 @@
-config.json
 client_secret.json
 gcaler
+
+# Templates
+templates/*.toml

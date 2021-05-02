@@ -1,15 +1,22 @@
 package userio
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 )
 
+const (
+	yesInput = "y"
+)
+
 var (
 	out = os.Stdout
 	in  = os.Stdin
+
+	unexpectedNewlineErr = errors.New("unexpected newline")
 )
 
 func UserIn(buf io.Reader) (string, error) {
@@ -43,13 +50,14 @@ func UserInBool(buf io.ReadWriter) (bool, error) {
 
 	var input string
 	_, err := fmt.Fscanln(in, &input)
-	if err.Error() == "unexpected newline" {
-		return false, nil
-	} else if err != nil {
+	if err != nil {
+		if err == unexpectedNewlineErr {
+			return false, nil
+		}
 		return false, err
 	}
 
-	if strings.ToLower(input) == "y" {
+	if strings.ToLower(input) == yesInput {
 		return true, nil
 	}
 

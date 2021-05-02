@@ -23,9 +23,9 @@ After the first run the google access token will cached in `$HOME/.gcaler/access
 
 ```bash
 # 1: create a config
-cp config.json.dist config.json
+cp templates/default.toml.dist templates/your_name.toml
 
-# 2: modify config.json contents with your data
+# 2: modify "your_name.toml" contents with your data
 ```
 
 3. Run `go install`
@@ -35,8 +35,8 @@ cp config.json.dist config.json
 ```bash
 $ gcaler -help
 
-# provide custom configs location; defauls are in the bin working dir
-$ gcaler -config /path/to/config.json -credentials /path/to/google/credentials.json
+# provide custom templates location; defauls are in the bin working dir
+$ gcaler -templates /path/to/templates -credentials /path/to/google/credentials.json
 ```
 
 License

@@ -23,7 +23,7 @@ var (
 	tokenCacheDir  string
 	tokenCacheFile string
 
-	configFile      string
+	templatesDir    string
 	credentialsFile string
 
 	out = os.Stdout
@@ -38,27 +38,27 @@ func init() {
 	tokenCacheDir = filepath.Join(os.Getenv("HOME"), "."+appName)
 	tokenCacheFile = filepath.Join(tokenCacheDir, "access_token.json")
 
-	flag.StringVar(&configFile, "config", filepath.Join(wd, "config.json"), "Config file name: absolute or relative path")
+	flag.StringVar(&templatesDir, "templates", filepath.Join(wd, "templates"), "Path to templates directory")
 	flag.StringVar(&credentialsFile, "credentials", filepath.Join(wd, "client_secret.json"), "Credentials file name: absolute or relative path")
 	flag.Parse()
 }
 
 func main() {
-	cfg, err := config.Load(configFile)
+	templateCfgs, err := os.ReadDir(templatesDir)
 	if err != nil {
 		panic(err)
 	}
 
-	if len(cfg.Templates) == 0 {
+	if len(templateCfgs) == 0 {
 		fmt.Fprintln(os.Stdout, "No event templates found. Exit.")
 		os.Exit(0)
 	}
 
 	var stdOutTemplate bytes.Buffer
-	fmt.Fprintf(&stdOutTemplate, "> Select a template [0..%d]\n", len(cfg.Templates)-1)
+	fmt.Fprintf(&stdOutTemplate, "> Select a template [0..%d]\n", len(templateCfgs)-1)
 
-	for i, template := range cfg.Templates {
-		fmt.Fprintf(&stdOutTemplate, "  * %d: %s\n", i, template.Name)
+	for i, templateFile := range templateCfgs {
+		fmt.Fprintf(&stdOutTemplate, "  * %d: %s\n", i, templateFile.Name())
 	}
 
 	stdOutTemplate.WriteString("\n> Template: ")
@@ -68,7 +68,10 @@ func main() {
 		panic(err)
 	}
 
-	template := cfg.Templates[templateIndex]
+	template, err := loadTemplate(templateCfgs[templateIndex].Name())
+	if err != nil {
+		panic(err)
+	}
 
 	gToken := auth.NewGToken(credentialsFile, tokenCacheFile, tokenCacheDir)
 	credCfg, err := gToken.Credentials()
@@ -111,6 +114,11 @@ func main() {
 	if _, err := io.Copy(out, summary); err != nil {
 		panic(err)
 	}
+}
+
+func loadTemplate(name string) (*config.Template, error) {
+	templateFile := filepath.Join(templatesDir, name)
+	return config.LoadTemplate(templateFile)
 }
 
 func summaryTxtBuffer(countAssgnmts int) *bytes.Buffer {

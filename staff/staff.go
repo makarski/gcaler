@@ -18,10 +18,9 @@ type (
 
 	// Assignee describes a config `people` item entry
 	Assignee struct {
-		FullName string `json:"full_name"`
-		Email    string `json:"email"`
-		Phone    string `json:"phone"`
-		Link     string `json:"link"`
+		FullName    string `toml:"full_name"`
+		Email       string `toml:"email"`
+		Description string `toml:"description"`
 	}
 
 	// Assignment contains a pair - Assigned Person and Date of the shift
