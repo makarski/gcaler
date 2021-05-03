@@ -43,31 +43,28 @@ func (a Assignees) print(w io.Writer) {
 	}
 }
 
-func (a Assignees) startDateAndDuration(cfgStartTime string) (*time.Time, int, error) {
+func (a Assignees) startDate(cfgStartTime string) (*time.Time, error) {
 	startDate, err := userio.UserIn(bytes.NewBufferString("> Enter a kickoff date: "))
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
 	date, err := time.Parse("2006-01-02T15:04:05-07:00", startDate+"T"+cfgStartTime)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
-	days, err := userio.UserInInt(bytes.NewBufferString("> Enter a number of days to schedule ('-1' to proceed day by day): "))
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return &date, days, nil
+	return &date, nil
 }
 
 // Schedule returns a slice of Assignment pairs: Assignee to Date
 func (a Assignees) Schedule(
 	ctx context.Context,
 	cfgStartTimeTZ string,
+	eventCount uint32,
+	frequency time.Duration,
 ) ([]Assignment, error) {
-	startDate, durationDays, err := a.startDateAndDuration(cfgStartTimeTZ)
+	startDate, err := a.startDate(cfgStartTimeTZ)
 	if err != nil {
 		return nil, err
 	}
@@ -75,54 +72,12 @@ func (a Assignees) Schedule(
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	dates, err := planweek.Plan(ctx, *startDate, durationDays)
+	dates, err := planweek.Plan(ctx, *startDate, eventCount, frequency)
 	if err != nil {
 		return nil, err
 	}
 
-	if durationDays > 0 {
-		return a.assignBatch(dates)
-	}
-
-	return a.assignOneByOne(dates)
-}
-
-func (a Assignees) assignOneByOne(
-	dates <-chan time.Time,
-) ([]Assignment, error) {
-	assignments := make([]Assignment, 0)
-	for date := range dates {
-		var pickCtaTxt bytes.Buffer
-		_, err := fmt.Fprintf(&pickCtaTxt, "> Pick up an assignee number for %s:\n\n", date.Format("2006-01-02"))
-		if err != nil {
-			return nil, err
-		}
-		a.print(&pickCtaTxt)
-
-		pickedIndex, err := userio.UserInInt(&pickCtaTxt)
-		if err != nil {
-			return nil, err
-		}
-
-		assignedPerson, err := a.pick(pickedIndex)
-		if err != nil {
-			return nil, err
-		}
-
-		assignment := Assignment{Date: date, Assignee: *assignedPerson}
-		assignments = append(assignments, assignment)
-
-		ok, err := userio.UserInBool(bytes.NewBufferString("> Do you want to continue assigning?"))
-		if err != nil {
-			return nil, err
-		}
-
-		if !ok {
-			break
-		}
-	}
-
-	return assignments, nil
+	return a.assignBatch(dates)
 }
 
 func (a Assignees) assignBatch(dates <-chan time.Time) ([]Assignment, error) {

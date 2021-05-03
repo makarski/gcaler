@@ -90,6 +90,8 @@ func main() {
 	assignments, err := staff.Assignees(template.Participants).Schedule(
 		ctx,
 		template.StartTimeTZ,
+		template.Recurrence.Count,
+		template.Recurrence.Frequency,
 	)
 	if err != nil {
 		panic(err)

@@ -5,30 +5,21 @@ import (
 	"time"
 )
 
-// defaultDurationDays holds the default number of days
-// to generate the planning dates for
-const defaultDurationDays = 30
-
 // Plan returns a channel of dates starting from startDate
-// Each following date is 24h later than the previous one, i.e. the next day
-func Plan(ctx context.Context, startDate time.Time, durationDays int) (<-chan time.Time, error) {
-	if durationDays <= 0 {
-		durationDays = defaultDurationDays
-	}
-
+func Plan(ctx context.Context, startDate time.Time, eventCount uint32, interval time.Duration) (<-chan time.Time, error) {
 	dates := make(chan time.Time)
-	go func(currentDate time.Time, dayCount int) {
-		for i := 0; i < dayCount; i++ {
+	go func(currentDate time.Time, eventCount uint32) {
+		for i := 0; i < int(eventCount); i++ {
 			select {
 			case <-ctx.Done():
 				break
 			default:
 				dates <- currentDate
-				currentDate = currentDate.Add(time.Hour * 24)
+				currentDate = currentDate.Add(interval)
 			}
 		}
 		close(dates)
-	}(startDate, durationDays)
+	}(startDate, eventCount)
 
 	return dates, nil
 }

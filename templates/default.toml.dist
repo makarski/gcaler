@@ -2,10 +2,13 @@ name = "New Event"
 cal_id = "calendar_id"
 event_name = "Calendar event"
 start_time_tz = "08:00:00+01:00"
-duration = "8h"
-recurrence = "multiple" # values: multiple, recurrent, single
+duration = "8h"                     # valid units: "ns", "us" (or "µs"), "ms", "s", "m", "h".
 
 participants = [
     { full_name = "Some Person T1", email = "some1@host.example", description = "additional info1" },
     { full_name = "Some Person T2", email = "some2@host.example", description = "additional info2" }
 ]
+
+[recurrence]
+count = 1           # unsigned int
+frequency = "24h"   # valid units: "ns", "us" (or "µs"), "ms", "s", "m", "h". 

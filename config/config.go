@@ -23,9 +23,12 @@ type (
 		StartTimeTZ  string           `toml:"start_time_tz"`
 		Participants []staff.Assignee `toml:"participants"`
 		Duration     time.Duration    `toml:"duration"`
+		Recurrence   Recurrence       `toml:"recurrence"`
+	}
 
-		// Not yet used
-		Recurrence string `toml:"recurrence"`
+	Recurrence struct {
+		Count     uint32        `toml:"count"`
+		Frequency time.Duration `toml:"frequency"`
 	}
 )
 
