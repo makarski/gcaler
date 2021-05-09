@@ -90,8 +90,7 @@ func main() {
 	assignments, err := staff.Assignees(template.Participants).Schedule(
 		ctx,
 		template.StartTimeTZ,
-		template.Recurrence.Count,
-		template.Recurrence.Frequency,
+		&template.Recurrence,
 	)
 	if err != nil {
 		panic(err)
@@ -100,7 +99,11 @@ func main() {
 	summary := summaryTxtBuffer(len(assignments))
 
 	for _, assignment := range assignments {
-		event := gCalendar.CalendarEvent(assignment, template.EventName, template.Duration)
+		event, err := gCalendar.CalendarEvent(assignment, template.EventName, template.Duration, &template.Recurrence)
+		if err != nil {
+			panic(err)
+		}
+
 		if _, err := calSrv.Events.Insert(template.CalID, event).Do(); err != nil {
 			panic(err)
 		}

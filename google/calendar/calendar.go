@@ -7,6 +7,7 @@ import (
 	"golang.org/x/oauth2"
 	"google.golang.org/api/calendar/v3"
 
+	"github.com/makarski/gcaler/config"
 	"github.com/makarski/gcaler/google/auth"
 	"github.com/makarski/gcaler/staff"
 )
@@ -35,22 +36,44 @@ func (gc GCalendar) CalendarService(ctx context.Context, authHandler auth.Consen
 }
 
 // CalendarEvent generates a google calendar event
-func (gc GCalendar) CalendarEvent(a staff.Assignment, eventName string, duration time.Duration) *calendar.Event {
+func (gc GCalendar) CalendarEvent(
+	a staff.Assignment,
+	eventName string,
+	duration time.Duration,
+	recurrence *config.Recurrence,
+) (*calendar.Event, error) {
 	startTime := a.Date.Format(eventDateTimeFormat)
 	endTime := a.Date.Add(duration).Format(eventDateTimeFormat)
+	tzName, _ := a.Date.UTC().Zone()
+
+	eRec, err := gcalEventRecurrence(recurrence)
+	if err != nil {
+		return nil, err
+	}
 
 	return &calendar.Event{
 		Summary:     eventName,
 		Description: a.Description,
 		Start: &calendar.EventDateTime{
 			DateTime: startTime,
+			TimeZone: tzName,
 		},
 		End: &calendar.EventDateTime{
 			DateTime: endTime,
+			TimeZone: tzName,
 		},
 		Attendees: []*calendar.EventAttendee{
 			{Email: a.Email, ResponseStatus: "needsAction"},
 		},
 		Transparency: "transparent",
+		Recurrence:   eRec,
+	}, nil
+}
+
+func gcalEventRecurrence(r *config.Recurrence) ([]string, error) {
+	if r.Mode.IsSingle() {
+		return nil, nil
 	}
+
+	return r.RFC5545()
 }

@@ -8,29 +8,23 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/makarski/gcaler/config"
 	"github.com/makarski/gcaler/planweek"
 	"github.com/makarski/gcaler/userio"
 )
 
 type (
 	// Assignees is a list of people to be assigned to shifts
-	Assignees []Assignee
-
-	// Assignee describes a config `people` item entry
-	Assignee struct {
-		FullName    string `toml:"full_name"`
-		Email       string `toml:"email"`
-		Description string `toml:"description"`
-	}
+	Assignees []config.Assignee
 
 	// Assignment contains a pair - Assigned Person and Date of the shift
 	Assignment struct {
-		Assignee
+		config.Assignee
 		Date time.Time
 	}
 )
 
-func (a Assignees) pick(i int) (*Assignee, error) {
+func (a Assignees) pick(i int) (*config.Assignee, error) {
 	if i > len(a)-1 {
 		return nil, fmt.Errorf("no assignee found by index: %d", i)
 	}
@@ -61,8 +55,7 @@ func (a Assignees) startDate(cfgStartTime string) (*time.Time, error) {
 func (a Assignees) Schedule(
 	ctx context.Context,
 	cfgStartTimeTZ string,
-	eventCount uint32,
-	frequency time.Duration,
+	recurrence *config.Recurrence,
 ) ([]Assignment, error) {
 	startDate, err := a.startDate(cfgStartTimeTZ)
 	if err != nil {
@@ -72,7 +65,12 @@ func (a Assignees) Schedule(
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	dates, err := planweek.Plan(ctx, *startDate, eventCount, frequency)
+	eventCount := recurrence.Count
+	if recurrence.Mode.IsRecurrent() {
+		eventCount = 1
+	}
+
+	dates, err := planweek.Plan(ctx, *startDate, eventCount, recurrence.Frequency)
 	if err != nil {
 		return nil, err
 	}

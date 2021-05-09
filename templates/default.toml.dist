@@ -10,5 +10,7 @@ participants = [
 ]
 
 [recurrence]
+mode = single       # values: single, recurrent
 count = 1           # unsigned int
-frequency = "24h"   # valid units: "ns", "us" (or "µs"), "ms", "s", "m", "h". 
+frequency = "24h"   # valid units: "m", "h". 
+interval = 2        # unsigned int
