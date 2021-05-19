@@ -37,6 +37,7 @@ func (gc GCalendar) CalendarService(ctx context.Context, authHandler auth.Consen
 
 // CalendarEvent generates a google calendar event
 func (gc GCalendar) CalendarEvent(
+	host config.Assignee,
 	a staff.Assignment,
 	eventName string,
 	duration time.Duration,
@@ -63,6 +64,7 @@ func (gc GCalendar) CalendarEvent(
 			TimeZone: tzName,
 		},
 		Attendees: []*calendar.EventAttendee{
+			{Email: host.Email, ResponseStatus: "accepted"},
 			{Email: a.Email, ResponseStatus: "needsAction"},
 		},
 		Transparency: "transparent",

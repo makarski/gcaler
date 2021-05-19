@@ -22,6 +22,11 @@ participants = [
     { first_name = "Some 2", last_name = "Person T2", email = "some2@host.example", description = "additional info2" }
 ]
 
+[host]
+first_name = "Organizer"
+last_name = "Last Name"
+email = "organizer@host.example"
+
 [recurrence]
 mode = single       # values: single, recurrent
 count = 1           # unsigned int

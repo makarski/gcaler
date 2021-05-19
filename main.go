@@ -99,7 +99,13 @@ func main() {
 	summary := summaryTxtBuffer(len(assignments))
 
 	for _, assignment := range assignments {
-		event, err := gCalendar.CalendarEvent(assignment, template.EventName, template.Duration, &template.Recurrence)
+		event, err := gCalendar.CalendarEvent(
+			template.EventHost,
+			assignment,
+			template.EventName,
+			template.Duration,
+			&template.Recurrence,
+		)
 		if err != nil {
 			panic(err)
 		}

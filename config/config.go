@@ -26,6 +26,7 @@ type (
 		EventName    string        `toml:"event_name"`
 		StartTimeTZ  string        `toml:"start_time_tz"`
 		Participants []*Assignee   `toml:"participants"`
+		EventHost    Assignee      `toml:"host"`
 		Duration     time.Duration `toml:"duration"`
 		Recurrence   Recurrence    `toml:"recurrence"`
 		Description  string        `toml:"description"`
