@@ -25,9 +25,10 @@ type (
 		Name         string        `toml:"name"`
 		EventName    string        `toml:"event_name"`
 		StartTimeTZ  string        `toml:"start_time_tz"`
-		Participants []Assignee    `toml:"participants"`
+		Participants []*Assignee   `toml:"participants"`
 		Duration     time.Duration `toml:"duration"`
 		Recurrence   Recurrence    `toml:"recurrence"`
+		Description  string        `toml:"description"`
 	}
 
 	// Assignee describes a config `people` item entry
@@ -59,7 +60,17 @@ func LoadTemplate(file string) (*Template, error) {
 		return nil, err
 	}
 
+	cfg.applyDescriptions()
+
 	return &cfg, cfg.Recurrence.validate()
+}
+
+func (t *Template) applyDescriptions() {
+	for _, participant := range t.Participants {
+		if participant.Description == "" {
+			participant.Description = t.Description
+		}
+	}
 }
 
 func (r RecMode) IsSingle() bool    { return r == RecModeSingle }

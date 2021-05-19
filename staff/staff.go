@@ -15,7 +15,7 @@ import (
 
 type (
 	// Assignees is a list of people to be assigned to shifts
-	Assignees []config.Assignee
+	Assignees []*config.Assignee
 
 	// Assignment contains a pair - Assigned Person and Date of the shift
 	Assignment struct {
@@ -28,7 +28,7 @@ func (a Assignees) pick(i int) (*config.Assignee, error) {
 	if i > len(a)-1 {
 		return nil, fmt.Errorf("no assignee found by index: %d", i)
 	}
-	return &a[i], nil
+	return a[i], nil
 }
 
 func (a Assignees) print(w io.Writer) {
