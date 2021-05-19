@@ -33,7 +33,8 @@ type (
 
 	// Assignee describes a config `people` item entry
 	Assignee struct {
-		FullName    string `toml:"full_name"`
+		FirstName   string `toml:"first_name"`
+		LastName    string `toml:"last_name"`
 		Email       string `toml:"email"`
 		Description string `toml:"description"`
 	}
@@ -122,3 +123,5 @@ func (r *Recurrence) frequency() (string, error) {
 
 	return "", fmt.Errorf("frequence is out of range: %v", r.Frequency)
 }
+
+func (a *Assignee) FullName() string { return a.FirstName + " " + a.LastName }

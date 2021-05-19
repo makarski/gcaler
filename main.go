@@ -111,7 +111,7 @@ func main() {
 		fmt.Fprintf(
 			summary,
 			"  * %s: %s\n",
-			assignment.Assignee.FullName,
+			assignment.Assignee.FullName(),
 			assignment.Date.Format(time.RFC1123),
 		)
 	}

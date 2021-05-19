@@ -33,7 +33,7 @@ func (a Assignees) pick(i int) (*config.Assignee, error) {
 
 func (a Assignees) print(w io.Writer) {
 	for i, person := range a {
-		fmt.Fprintf(w, "  * %d: %s\n", i, person.FullName)
+		fmt.Fprintf(w, "  * %d: %s\n", i, person.FullName())
 	}
 }
 

@@ -18,8 +18,8 @@ ABC
 """
 
 participants = [
-    { full_name = "Some Person T1", email = "some1@host.example", description = "additional info1" },
-    { full_name = "Some Person T2", email = "some2@host.example", description = "additional info2" }
+    { first_name = "Some 1", last_name = "Person T1", email = "some1@host.example" },
+    { first_name = "Some 2", last_name = "Person T2", email = "some2@host.example", description = "additional info2" }
 ]
 
 [recurrence]
