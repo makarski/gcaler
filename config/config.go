@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/pelletier/go-toml"
@@ -21,15 +22,16 @@ type (
 
 	// Template holds calendar event basic configuration data
 	Template struct {
-		CalID        string        `toml:"cal_id"`
-		Name         string        `toml:"name"`
-		EventName    string        `toml:"event_name"`
-		StartTimeTZ  string        `toml:"start_time_tz"`
-		Participants []*Assignee   `toml:"participants"`
-		EventHost    Assignee      `toml:"host"`
-		Duration     time.Duration `toml:"duration"`
-		Recurrence   Recurrence    `toml:"recurrence"`
-		Description  string        `toml:"description"`
+		CalID                 string        `toml:"cal_id"`
+		Name                  string        `toml:"name"`
+		EventTitle            string        `toml:"event_title"`
+		StartTimeTZ           string        `toml:"start_time_tz"`
+		Participants          []*Assignee   `toml:"participants"`
+		EventHost             Assignee      `toml:"host"`
+		Duration              time.Duration `toml:"duration"`
+		Recurrence            Recurrence    `toml:"recurrence"`
+		Description           string        `toml:"description"`
+		TitleWithParticipants bool          `toml:"title_with_participants"`
 	}
 
 	// Assignee describes a config `people` item entry
@@ -65,6 +67,19 @@ func LoadTemplate(file string) (*Template, error) {
 	cfg.applyDescriptions()
 
 	return &cfg, cfg.Recurrence.validate()
+}
+
+func (t *Template) GenerateEventTitle(participants ...Assignee) string {
+	if !t.TitleWithParticipants {
+		return t.EventTitle
+	}
+
+	names := make([]string, 0, len(participants))
+	for _, p := range participants {
+		names = append(names, p.FirstName)
+	}
+
+	return fmt.Sprintf("%s: %s", t.EventTitle, strings.Join(names, " / "))
 }
 
 func (t *Template) applyDescriptions() {

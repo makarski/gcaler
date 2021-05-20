@@ -100,11 +100,8 @@ func main() {
 
 	for _, assignment := range assignments {
 		event, err := gCalendar.CalendarEvent(
-			template.EventHost,
 			assignment,
-			template.EventName,
-			template.Duration,
-			&template.Recurrence,
+			template,
 		)
 		if err != nil {
 			panic(err)

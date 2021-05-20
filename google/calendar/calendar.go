@@ -2,7 +2,6 @@ package calendar
 
 import (
 	"context"
-	"time"
 
 	"golang.org/x/oauth2"
 	"google.golang.org/api/calendar/v3"
@@ -37,23 +36,20 @@ func (gc GCalendar) CalendarService(ctx context.Context, authHandler auth.Consen
 
 // CalendarEvent generates a google calendar event
 func (gc GCalendar) CalendarEvent(
-	host config.Assignee,
 	a staff.Assignment,
-	eventName string,
-	duration time.Duration,
-	recurrence *config.Recurrence,
+	t *config.Template,
 ) (*calendar.Event, error) {
 	startTime := a.Date.Format(eventDateTimeFormat)
-	endTime := a.Date.Add(duration).Format(eventDateTimeFormat)
+	endTime := a.Date.Add(t.Duration).Format(eventDateTimeFormat)
 	tzName, _ := a.Date.UTC().Zone()
 
-	eRec, err := gcalEventRecurrence(recurrence)
+	eRec, err := gcalEventRecurrence(&t.Recurrence)
 	if err != nil {
 		return nil, err
 	}
 
 	return &calendar.Event{
-		Summary:     eventName,
+		Summary:     t.GenerateEventTitle(a.Assignee, t.EventHost),
 		Description: a.Description,
 		Start: &calendar.EventDateTime{
 			DateTime: startTime,
@@ -64,7 +60,7 @@ func (gc GCalendar) CalendarEvent(
 			TimeZone: tzName,
 		},
 		Attendees: []*calendar.EventAttendee{
-			{Email: host.Email, ResponseStatus: "accepted"},
+			{Email: t.EventHost.Email, ResponseStatus: "accepted"},
 			{Email: a.Email, ResponseStatus: "needsAction"},
 		},
 		Transparency: "transparent",
