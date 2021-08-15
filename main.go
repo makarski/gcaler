@@ -73,6 +73,11 @@ func main() {
 		panic(err)
 	}
 
+	tz, err := time.LoadLocation(template.Timezone)
+	if err != nil {
+		panic(err)
+	}
+
 	gToken := auth.NewGToken(credentialsFile, tokenCacheFile, tokenCacheDir)
 	credCfg, err := gToken.Credentials()
 	if err != nil {
@@ -89,7 +94,7 @@ func main() {
 
 	assignments, err := staff.Assignees(template.Participants).Schedule(
 		ctx,
-		template.StartTimeTZ,
+		tz,
 		&template.Recurrence,
 	)
 	if err != nil {

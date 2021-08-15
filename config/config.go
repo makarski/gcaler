@@ -25,7 +25,7 @@ type (
 		CalID                 string        `toml:"cal_id"`
 		Name                  string        `toml:"name"`
 		EventTitle            string        `toml:"event_title"`
-		StartTimeTZ           string        `toml:"start_time_tz"`
+		Timezone              string        `toml:"timezone"`
 		Participants          []*Assignee   `toml:"participants"`
 		EventHost             Assignee      `toml:"host"`
 		Duration              time.Duration `toml:"duration"`

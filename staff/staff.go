@@ -37,13 +37,18 @@ func (a Assignees) print(w io.Writer) {
 	}
 }
 
-func (a Assignees) startDate(cfgStartTime string) (*time.Time, error) {
-	startDate, err := userio.UserIn(bytes.NewBufferString("> Enter a kickoff date: "))
+func (a Assignees) startDate(timezone *time.Location) (*time.Time, error) {
+	startDate, err := userio.UserIn(bytes.NewBufferString("> Enter event date (ex: 2006-10-22): "))
 	if err != nil {
 		return nil, err
 	}
 
-	date, err := time.Parse("2006-01-02T15:04:05-07:00", startDate+"T"+cfgStartTime)
+	startTime, err := userio.UserIn(bytes.NewBufferString("> Enter event time (ex: 15:04): "))
+	if err != nil {
+		return nil, err
+	}
+
+	date, err := time.ParseInLocation("2006-01-02 15:04", startDate+" "+startTime, timezone)
 	if err != nil {
 		return nil, err
 	}
@@ -54,10 +59,10 @@ func (a Assignees) startDate(cfgStartTime string) (*time.Time, error) {
 // Schedule returns a slice of Assignment pairs: Assignee to Date
 func (a Assignees) Schedule(
 	ctx context.Context,
-	cfgStartTimeTZ string,
+	timezone *time.Location,
 	recurrence *config.Recurrence,
 ) ([]Assignment, error) {
-	startDate, err := a.startDate(cfgStartTimeTZ)
+	startDate, err := a.startDate(timezone)
 	if err != nil {
 		return nil, err
 	}
