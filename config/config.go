@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -26,6 +27,8 @@ type (
 		Name                  string        `toml:"name"`
 		EventTitle            string        `toml:"event_title"`
 		Timezone              string        `toml:"timezone"`
+		Transparency          string        `toml:"transparency"`
+		Visibility            string        `toml:"visibility"`
 		Participants          []*Assignee   `toml:"participants"`
 		EventHost             Assignee      `toml:"host"`
 		Duration              time.Duration `toml:"duration"`
@@ -66,7 +69,60 @@ func LoadTemplate(file string) (*Template, error) {
 
 	cfg.applyDescriptions()
 
-	return &cfg, cfg.Recurrence.validate()
+	return &cfg, cfg.validate()
+}
+
+func (t *Template) validate() error {
+	validators := []func() error{
+		t.Recurrence.validate,
+		t.validateTransparency,
+		t.validateVisibility,
+	}
+
+	errs := make([]string, 0)
+	for _, validator := range validators {
+		if err := validator(); err != nil {
+			errs = append(errs, err.Error())
+		}
+	}
+
+	if len(errs) > 0 {
+		return errors.New(strings.Join(errs, "\n"))
+	}
+
+	return nil
+}
+
+func (t *Template) validateVisibility() error {
+	validValues := map[string]bool{
+		"public":  true,
+		"private": true,
+		"":        true,
+	}
+
+	if _, ok := validValues[t.Visibility]; !ok {
+		return fmt.Errorf("invalid config `visibility` value: %s", t.Visibility)
+	}
+
+	return nil
+}
+
+func (t *Template) validateTransparency() error {
+	validValueMapping := map[string]string{
+		"busy": "opaque",
+		"free": "transparent",
+		"":     "",
+	}
+
+	targetValue, ok := validValueMapping[t.Transparency]
+	if !ok {
+		return fmt.Errorf("invalid config `transparency` value: %s", t.Transparency)
+	}
+
+	// overwrite (mutate) config values
+	t.Transparency = targetValue
+
+	return nil
 }
 
 func (t *Template) GenerateEventTitle(participants ...Assignee) string {

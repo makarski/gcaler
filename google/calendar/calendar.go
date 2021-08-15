@@ -63,7 +63,8 @@ func (gc GCalendar) CalendarEvent(
 			{Email: t.EventHost.Email, ResponseStatus: "accepted"},
 			{Email: a.Email, ResponseStatus: "needsAction"},
 		},
-		Transparency: "transparent",
+		Transparency: t.Transparency,
+		Visibility:   t.Visibility,
 		Recurrence:   eRec,
 	}, nil
 }

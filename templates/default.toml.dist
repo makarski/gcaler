@@ -3,6 +3,8 @@ cal_id = "calendar_id"
 event_title = "Calendar event" # Will be used in the created Event
 timezone = "Local"   # example: "UTC", "Europe/Berlin", "CET", "Local"
 duration = "8h"      # valid units: "ns", "us" (or "µs"), "ms", "s", "m", "h".
+transparency = "busy" # optional. valid values: "busy", "free".
+visibility = "public" # optional. valid values: "private", "public"
 
 # Generic description, can be overwritten on the participant level
 description = """
