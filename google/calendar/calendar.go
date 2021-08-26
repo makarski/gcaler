@@ -5,6 +5,7 @@ import (
 
 	"golang.org/x/oauth2"
 	"google.golang.org/api/calendar/v3"
+	"google.golang.org/api/option"
 
 	"github.com/makarski/gcaler/config"
 	"github.com/makarski/gcaler/google/auth"
@@ -31,7 +32,7 @@ func (gc GCalendar) CalendarService(ctx context.Context, authHandler auth.Consen
 		return nil, err
 	}
 
-	return calendar.New(gc.cfg.Client(ctx, tok))
+	return calendar.NewService(ctx, option.WithHTTPClient(gc.cfg.Client(ctx, tok)))
 }
 
 // CalendarEvent generates a google calendar event
