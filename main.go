@@ -17,7 +17,11 @@ import (
 	"github.com/makarski/gcaler/userio"
 )
 
-const appName = "gcaler"
+const (
+	appName = "gcaler"
+	planCmd = "plan"
+	listCmd = "list"
+)
 
 var (
 	tokenCacheDir  string
@@ -27,6 +31,13 @@ var (
 	credentialsFile string
 
 	out = os.Stdout
+
+	// map of commands
+	cmds = map[string]func(){
+		planCmd: plan,
+		listCmd: list,
+		"":      plan,
+	}
 )
 
 func init() {
@@ -40,10 +51,28 @@ func init() {
 
 	flag.StringVar(&templatesDir, "templates", filepath.Join(wd, "templates"), "Path to templates directory")
 	flag.StringVar(&credentialsFile, "credentials", filepath.Join(wd, "client_secret.json"), "Credentials file name: absolute or relative path")
-	flag.Parse()
 }
 
 func main() {
+	var cmdName string
+	if len(os.Args) > 1 {
+		cmdName = os.Args[1]
+	}
+
+	cmd, ok := cmds[cmdName]
+	if !ok {
+		panic(fmt.Sprintf("cmd: `%s` not found", cmdName))
+	}
+
+	// execute
+	cmd()
+}
+
+func list() {
+	fmt.Println("not implemented")
+}
+
+func plan() {
 	templateCfgs, err := os.ReadDir(templatesDir)
 	if err != nil {
 		panic(err)
