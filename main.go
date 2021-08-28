@@ -24,6 +24,8 @@ const (
 )
 
 var (
+	fls *flag.FlagSet
+
 	tokenCacheDir  string
 	tokenCacheFile string
 
@@ -33,7 +35,7 @@ var (
 	out = os.Stdout
 
 	// map of commands
-	cmds = map[string]func(){
+	cmds = map[string]func(gcal.GCalendar, *config.Template){
 		planCmd: plan,
 		listCmd: list,
 		"":      plan,
@@ -49,60 +51,44 @@ func init() {
 	tokenCacheDir = filepath.Join(os.Getenv("HOME"), "."+appName)
 	tokenCacheFile = filepath.Join(tokenCacheDir, "access_token.json")
 
-	flag.StringVar(&templatesDir, "templates", filepath.Join(wd, "templates"), "Path to templates directory")
-	flag.StringVar(&credentialsFile, "credentials", filepath.Join(wd, "client_secret.json"), "Credentials file name: absolute or relative path")
+	fls = flag.NewFlagSet("", flag.ExitOnError)
+
+	fls.StringVar(&templatesDir, "templates", filepath.Join(wd, "templates"), "Path to templates directory")
+	fls.StringVar(&credentialsFile, "credentials", filepath.Join(wd, "client_secret.json"), "Credentials file name: absolute or relative path")
+
+	fls.Usage = printHelp
+}
+
+func printHelp() {
+	txt := `
+Calendar planner
+
+USAGE:
+  gcaler [OPTIONS] [SUBCOMMAND]
+
+SUBCOMMANDS:
+  plan		Schedule an based on the template config
+  list		List calendar events
+
+OPTIONS:
+`
+
+	fmt.Fprint(fls.Output(), txt)
+	fls.PrintDefaults()
 }
 
 func main() {
-	var cmdName string
-	if len(os.Args) > 1 {
-		cmdName = os.Args[1]
-	}
+	// parse flags
+	fls.Parse(os.Args[1:])
 
+	// parse subcommand
+	cmdName := fls.Arg(0)
 	cmd, ok := cmds[cmdName]
 	if !ok {
 		panic(fmt.Sprintf("cmd: `%s` not found", cmdName))
 	}
 
-	// execute
-	cmd()
-}
-
-func list() {
-	fmt.Println("not implemented")
-}
-
-func plan() {
-	templateCfgs, err := os.ReadDir(templatesDir)
-	if err != nil {
-		panic(err)
-	}
-
-	if len(templateCfgs) == 0 {
-		fmt.Fprintln(os.Stdout, "No event templates found. Exit.")
-		os.Exit(0)
-	}
-
-	var stdOutTemplate bytes.Buffer
-	fmt.Fprintf(&stdOutTemplate, "> Select a template [0..%d]\n", len(templateCfgs)-1)
-
-	for i, templateFile := range templateCfgs {
-		fmt.Fprintf(&stdOutTemplate, "  * %d: %s\n", i, templateFile.Name())
-	}
-
-	stdOutTemplate.WriteString("\n> Template: ")
-
-	templateIndex, err := userio.UserInInt(&stdOutTemplate)
-	if err != nil {
-		panic(err)
-	}
-
-	template, err := loadTemplate(templateCfgs[templateIndex].Name())
-	if err != nil {
-		panic(err)
-	}
-
-	tz, err := time.LoadLocation(template.Timezone)
+	template, err := loadTemplate()
 	if err != nil {
 		panic(err)
 	}
@@ -115,8 +101,22 @@ func plan() {
 
 	gCalendar := gcal.NewGCalerndar(&gToken, credCfg)
 
+	// execute
+	cmd(gCalendar, template)
+}
+
+func list(_ gcal.GCalendar, _ *config.Template) {
+	fmt.Println("not implemented")
+}
+
+func plan(gCalendar gcal.GCalendar, template *config.Template) {
 	ctx := context.Background()
 	calSrv, err := gCalendar.CalendarService(ctx, handleAuthConsent)
+	if err != nil {
+		panic(err)
+	}
+
+	tz, err := time.LoadLocation(template.Timezone)
 	if err != nil {
 		panic(err)
 	}
@@ -158,8 +158,32 @@ func plan() {
 	}
 }
 
-func loadTemplate(name string) (*config.Template, error) {
-	templateFile := filepath.Join(templatesDir, name)
+func loadTemplate() (*config.Template, error) {
+	templateCfgs, err := os.ReadDir(templatesDir)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(templateCfgs) == 0 {
+		fmt.Fprintln(os.Stdout, "No event templates found. Exit.")
+		os.Exit(0)
+	}
+
+	var stdOutTemplate bytes.Buffer
+	fmt.Fprintf(&stdOutTemplate, "> Select a template [0..%d]\n", len(templateCfgs)-1)
+
+	for i, templateFile := range templateCfgs {
+		fmt.Fprintf(&stdOutTemplate, "  * %d: %s\n", i, templateFile.Name())
+	}
+
+	stdOutTemplate.WriteString("\n> Template: ")
+
+	templateIndex, err := userio.UserInInt(&stdOutTemplate)
+	if err != nil {
+		return nil, err
+	}
+
+	templateFile := filepath.Join(templatesDir, templateCfgs[templateIndex].Name())
 	return config.LoadTemplate(templateFile)
 }
 
