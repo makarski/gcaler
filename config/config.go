@@ -47,7 +47,7 @@ type (
 
 	Recurrence struct {
 		Mode      RecMode       `toml:"mode"`
-		Count     uint32        `toml:"count"`
+		Count     int32         `toml:"count"`
 		Frequency time.Duration `toml:"frequency"`
 		Interval  uint32        `toml:"interval"`
 	}
@@ -167,14 +167,14 @@ func (r *Recurrence) RFC5545() ([]string, error) {
 		return nil, err
 	}
 
-	return []string{
-		fmt.Sprintf(
-			"RRULE:FREQ=%s;COUNT=%d;INTERVAL=%d",
-			f,
-			r.Count,
-			r.Interval,
-		),
-	}, nil
+	var rule string
+	if r.Count < 0 {
+		rule = fmt.Sprintf("RRULE:FREQ=%s;INTERVAL=%d", f, r.Interval)
+	} else {
+		rule = fmt.Sprintf("RRULE:FREQ=%s;COUNT=%d;INTERVAL=%d", f, r.Count, r.Interval)
+	}
+
+	return []string{rule}, nil
 }
 
 func (r *Recurrence) frequency() (string, error) {

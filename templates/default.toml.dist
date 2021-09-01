@@ -1,8 +1,8 @@
 name = "New Event" # meta - not used anywhere
 cal_id = "calendar_id"
 event_title = "Calendar event" # Will be used in the created Event
-timezone = "Local"   # example: "UTC", "Europe/Berlin", "CET", "Local"
-duration = "8h"      # valid units: "ns", "us" (or "µs"), "ms", "s", "m", "h".
+timezone = "Local"    # example: "UTC", "Europe/Berlin", "CET", "Local"
+duration = "8h"       # valid units: "ns", "us" (or "µs"), "ms", "s", "m", "h".
 transparency = "busy" # optional. valid values: "busy", "free".
 visibility = "public" # optional. valid values: "private", "public"
 
@@ -33,6 +33,6 @@ email = "organizer@host.example"
 
 [recurrence]
 mode = single       # values: single, recurrent
-count = 1           # unsigned int
+count = 1           # signed int. -1 to plan unlimited count
 frequency = "24h"   # valid units: "m", "h". 
 interval = 2        # unsigned int
