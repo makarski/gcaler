@@ -16,20 +16,21 @@ import (
 
 var out = os.Stdout
 
-func List(_ gcal.GCalendar, _ *config.Template) {
+func List(_ gcal.GCalendar, _ *config.Template) error {
 	fmt.Println("not implemented")
+	return nil
 }
 
-func Plan(gCalendar gcal.GCalendar, template *config.Template) {
+func Plan(gCalendar gcal.GCalendar, template *config.Template) error {
 	ctx := context.Background()
 	calSrv, err := gCalendar.CalendarService(ctx, handleAuthConsent)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	tz, err := time.LoadLocation(template.Timezone)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	assignments, err := staff.Assignees(template.Participants).Schedule(
@@ -38,7 +39,7 @@ func Plan(gCalendar gcal.GCalendar, template *config.Template) {
 		&template.Recurrence,
 	)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	summary := summaryTxtBuffer(len(assignments))
@@ -49,11 +50,11 @@ func Plan(gCalendar gcal.GCalendar, template *config.Template) {
 			template,
 		)
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		if _, err := calSrv.Events.Insert(template.CalID, event).Do(); err != nil {
-			panic(err)
+			return err
 		}
 
 		for _, asgnee := range assignment.Assignees {
@@ -66,9 +67,8 @@ func Plan(gCalendar gcal.GCalendar, template *config.Template) {
 		}
 	}
 
-	if _, err := io.Copy(out, summary); err != nil {
-		panic(err)
-	}
+	_, err = io.Copy(out, summary)
+	return err
 }
 
 func summaryTxtBuffer(countAssgnmts int) *bytes.Buffer {

@@ -30,7 +30,7 @@ var (
 	credentialsFile string
 
 	// map of commands
-	cmds = map[string]func(gcal.GCalendar, *config.Template){
+	cmds = map[string]func(gcal.GCalendar, *config.Template) error{
 		planCmd: cmd.Plan,
 		listCmd: cmd.List,
 		"":      cmd.Plan,
@@ -97,7 +97,9 @@ func main() {
 	gCalendar := gcal.NewGCalerndar(&gToken, credCfg)
 
 	// execute
-	cmd(gCalendar, template)
+	if err := cmd(gCalendar, template); err != nil {
+		panic(err)
+	}
 }
 
 func loadTemplate() (*config.Template, error) {
