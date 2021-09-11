@@ -145,12 +145,14 @@ func plan(gCalendar gcal.GCalendar, template *config.Template) {
 			panic(err)
 		}
 
-		fmt.Fprintf(
-			summary,
-			"  * %s: %s\n",
-			assignment.Assignee.FullName(),
-			assignment.Date.Format(time.RFC1123),
-		)
+		for _, asgnee := range assignment.Assignees {
+			fmt.Fprintf(
+				summary,
+				"  * %s: %s\n",
+				asgnee.FullName(),
+				assignment.Date.Format(time.RFC1123),
+			)
+		}
 	}
 
 	if _, err := io.Copy(out, summary); err != nil {

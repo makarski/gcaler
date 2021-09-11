@@ -125,7 +125,7 @@ func (t *Template) validateTransparency() error {
 	return nil
 }
 
-func (t *Template) GenerateEventTitle(participants ...Assignee) string {
+func (t *Template) GenerateEventTitle(participants ...*Assignee) string {
 	if !t.TitleWithParticipants {
 		return t.EventTitle
 	}

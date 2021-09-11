@@ -50,8 +50,8 @@ func (gc GCalendar) CalendarEvent(
 	}
 
 	return &calendar.Event{
-		Summary:     t.GenerateEventTitle(a.Assignee, t.EventHost),
-		Description: a.Description,
+		Summary:     t.GenerateEventTitle(append(a.Assignees, &t.EventHost)...),
+		Description: eventDescription(a.Assignees, t.Description),
 		Start: &calendar.EventDateTime{
 			DateTime: startTime,
 			TimeZone: tzName,
@@ -60,14 +60,28 @@ func (gc GCalendar) CalendarEvent(
 			DateTime: endTime,
 			TimeZone: tzName,
 		},
-		Attendees: []*calendar.EventAttendee{
-			{Email: t.EventHost.Email, ResponseStatus: "accepted"},
-			{Email: a.Email, ResponseStatus: "needsAction"},
-		},
+		Attendees:    eventAttendees(t.EventHost.Email, a.Assignees),
 		Transparency: t.Transparency,
 		Visibility:   t.Visibility,
 		Recurrence:   eRec,
 	}, nil
+}
+
+func eventAttendees(hostEmail string, atds []*config.Assignee) []*calendar.EventAttendee {
+	attendees := []*calendar.EventAttendee{{Email: hostEmail, ResponseStatus: "accepted"}}
+	for _, atd := range atds {
+		attendees = append(attendees, &calendar.EventAttendee{Email: atd.Email, ResponseStatus: "needsAction"})
+	}
+
+	return attendees
+}
+
+func eventDescription(assignees []*config.Assignee, generic string) string {
+	if len(assignees) != 1 {
+		return generic
+	}
+
+	return assignees[0].Description
 }
 
 func gcalEventRecurrence(r *config.Recurrence) ([]string, error) {

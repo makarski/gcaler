@@ -1,6 +1,7 @@
 package userio
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -24,9 +25,13 @@ func UserIn(buf io.Reader) (string, error) {
 		return "", err
 	}
 
-	var input string
-	_, err := fmt.Fscanln(in, &input)
-	return input, err
+	scanner := bufio.NewScanner(in)
+	if ok := scanner.Scan(); !ok {
+		return "", scanner.Err()
+	}
+	input := scanner.Text()
+
+	return input, nil
 }
 
 func UserInInt(buf io.Reader) (int, error) {

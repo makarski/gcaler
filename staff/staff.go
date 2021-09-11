@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/makarski/gcaler/config"
@@ -19,7 +20,7 @@ type (
 
 	// Assignment contains a pair - Assigned Person and Date of the shift
 	Assignment struct {
-		config.Assignee
+		Assignees
 		Date time.Time
 	}
 )
@@ -101,7 +102,7 @@ func (a Assignees) assignBatch(dates <-chan time.Time) ([]Assignment, error) {
 	}
 
 	schedule := make([]time.Time, 0)
-	inPicks := []string{}
+	inPicks := make([][]string, 0)
 
 	for date := range dates {
 		schedule = append(schedule, date)
@@ -111,21 +112,26 @@ func (a Assignees) assignBatch(dates <-chan time.Time) ([]Assignment, error) {
 			return nil, err
 		}
 
-		inPicks = append(inPicks, in)
+		inPicks = append(inPicks, strings.Split(in, " "))
 	}
 
 	for i, inPick := range inPicks {
-		pickedIndex, err := strconv.Atoi(inPick)
-		if err != nil {
-			return nil, err
-		}
+		assignees := make([]*config.Assignee, 0, len(inPicks))
+		for _, pick := range inPick {
+			pickedIndex, err := strconv.Atoi(pick)
+			if err != nil {
+				return nil, err
+			}
 
-		assignedPerson, err := a.pick(pickedIndex)
-		if err != nil {
-			return nil, err
-		}
+			assignedPerson, err := a.pick(pickedIndex)
+			if err != nil {
+				return nil, err
+			}
 
-		assignment := Assignment{Date: schedule[i], Assignee: *assignedPerson}
+			assignees = append(assignees, assignedPerson)
+
+		}
+		assignment := Assignment{Date: schedule[i], Assignees: assignees}
 		assignments = append(assignments, assignment)
 	}
 
