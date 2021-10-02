@@ -1,12 +1,11 @@
 gcaler
 ------
 
-The cli tool name is a concatenation of `google calendar scheduler`. The tool was created in order to quickly assign daily on-call shifts to the members of the dev team and post the schedule to the Google Calendar.
+The name is a concatenation of `google calendar scheduler`.  
+Currently supported are two subcommands  
 
-Demo
-----
-
-![gcaler demo image](demo.png)
+- `plan` create events from a predefined template, i.e. calendar as code
+- `list` list daily calendar events in terminal
 
 Set up
 ------
@@ -36,8 +35,8 @@ cp templates/default.toml.dist templates/your_name.toml
 $ gcaler -help
 
 # provide custom templates location; defauls are in the bin working dir
-$ gcaler -templates /path/to/templates -credentials /path/to/google/credentials.json
-```
+$ gcaler -templates /path/to/templates -credentials /path/to/google/credentials.json {cmd}
+```                     
 
 License
 -------
