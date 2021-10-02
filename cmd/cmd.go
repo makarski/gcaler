@@ -18,48 +18,6 @@ import (
 
 var out = os.Stdout
 
-func List(gCalendar gcal.GCalendar, template *config.Template) error {
-	ctx := context.Background()
-	calSrv, tz, err := calSrvLocation(ctx, &gCalendar, template)
-	if err != nil {
-		return err
-	}
-
-	now := time.Now()
-	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, tz)
-	end := start.Add(time.Hour * 24)
-
-	events, err := calSrv.Events.
-		List(template.CalID).
-		TimeMin(start.Format(time.RFC3339)).
-		TimeMax(end.Format(time.RFC3339)).
-		Do()
-
-	if err != nil {
-		return err
-	}
-
-	for _, event := range events.Items {
-		startEnd := make([]string, 0, 2)
-		for _, dateTime := range []*calendar.EventDateTime{event.Start, event.End} {
-			parsed, err := time.Parse(time.RFC3339, dateTime.DateTime)
-			if err != nil {
-				return err
-			}
-			startEnd = append(startEnd, parsed.Format(time.Kitchen))
-		}
-
-		fmt.Printf("  * %s - %s: %s (%s)\n",
-			startEnd[0],
-			startEnd[1],
-			event.Summary,
-			event.Status,
-		)
-	}
-
-	return nil
-}
-
 func Plan(gCalendar gcal.GCalendar, template *config.Template) error {
 	ctx := context.Background()
 	calSrv, tz, err := calSrvLocation(ctx, &gCalendar, template)
