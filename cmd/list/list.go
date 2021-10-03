@@ -1,4 +1,4 @@
-package cmd
+package list
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 
 	"google.golang.org/api/calendar/v3"
 
+	"github.com/makarski/gcaler/cmd"
 	"github.com/makarski/gcaler/config"
 	gcal "github.com/makarski/gcaler/google/calendar"
 )
@@ -38,13 +39,13 @@ var (
 
 func List(gCalendar gcal.GCalendar, template *config.Template) error {
 	ctx := context.Background()
-	calSrv, tz, err := calSrvLocation(ctx, &gCalendar, template)
+	calSrv, tz, err := cmd.CalSrvLocation(ctx, &gCalendar, template)
 	if err != nil {
 		return err
 	}
 
 	now := time.Now()
-	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, tz)
+	start := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, tz)
 	end := start.Add(time.Hour * 24)
 
 	events, err := calSrv.Events.

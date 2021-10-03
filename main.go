@@ -7,7 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/makarski/gcaler/cmd"
+	"github.com/makarski/gcaler/cmd/list"
+	"github.com/makarski/gcaler/cmd/plan"
 	"github.com/makarski/gcaler/config"
 	"github.com/makarski/gcaler/google/auth"
 	gcal "github.com/makarski/gcaler/google/calendar"
@@ -31,9 +32,9 @@ var (
 
 	// map of commands
 	cmds = map[string]func(gcal.GCalendar, *config.Template) error{
-		planCmd: cmd.Plan,
-		listCmd: cmd.List,
-		"":      cmd.Plan,
+		planCmd: plan.Plan,
+		listCmd: list.List,
+		"":      list.List,
 	}
 )
 
