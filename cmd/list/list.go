@@ -37,74 +37,81 @@ var (
 	}
 )
 
-func List(gCalendar gcal.GCalendar, template *config.Template) error {
-	ctx := context.Background()
-	calSrv, tz, err := cmd.CalSrvLocation(ctx, &gCalendar, template)
-	if err != nil {
-		return err
-	}
-
-	now := time.Now()
-	start := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, tz)
-	end := start.Add(time.Hour * 24)
-
-	events, err := calSrv.Events.
-		List(template.CalID).
-		TimeMin(start.Format(time.RFC3339)).
-		TimeMax(end.Format(time.RFC3339)).
-		SingleEvents(true).
-		OrderBy("startTime").
-		Do()
-
-	if err != nil {
-		return err
-	}
-
-	cursorSet := false
-
-	for _, event := range events.Items {
-		if event.Status == statusCancelled {
-			continue
-		}
-
-		startEnd, err := parseEventTime(event)
+func List(email string) cmd.CmdFunc {
+	template := loadTemplate(email)
+	return func(gCalendar gcal.GCalendar) error {
+		ctx := context.Background()
+		calSrv, tz, err := cmd.CalSrvLocation(ctx, &gCalendar, template)
 		if err != nil {
 			return err
 		}
 
-		nowCursor := "  "
-		if !cursorSet {
-			nowCursor, cursorSet, err = scheduleCursorEmoji(now, startEnd[0])
+		now := time.Now()
+		start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, tz)
+		end := start.Add(time.Hour * 24)
+
+		events, err := calSrv.Events.
+			List(template.CalID).
+			TimeMin(start.Format(time.RFC3339)).
+			TimeMax(end.Format(time.RFC3339)).
+			SingleEvents(true).
+			OrderBy("startTime").
+			Do()
+
+		if err != nil {
+			return err
+		}
+
+		cursorSet := false
+
+		for _, event := range events.Items {
+			if event.Status == statusCancelled {
+				continue
+			}
+
+			startEnd, err := parseEventTime(event)
 			if err != nil {
 				return err
 			}
-		}
 
-		ownResponse := eventResponseStatus(event, template.CalID)
-		emoji, err := statusEmoji(ownResponse)
-		if err != nil {
-			return err
-		}
-
-		fmt.Printf("\n%s %s %s - %s: %s\n",
-			nowCursor,
-			emoji,
-			startEnd[0].Format(time.Kitchen),
-			startEnd[1].Format(time.Kitchen),
-			event.Summary,
-		)
-
-		if event.ConferenceData != nil {
-			for _, conf := range event.ConferenceData.EntryPoints {
-				if conf.EntryPointType == eventTypeVideo {
-					fmt.Printf("    %s\n", conf.Uri)
+			nowCursor := "  "
+			if !cursorSet {
+				nowCursor, cursorSet, err = scheduleCursorEmoji(now, startEnd[0])
+				if err != nil {
+					return err
 				}
 			}
+
+			ownResponse := eventResponseStatus(event, template.CalID)
+			emoji, err := statusEmoji(ownResponse)
+			if err != nil {
+				return err
+			}
+
+			fmt.Printf("\n%s %s %s - %s: %s\n",
+				nowCursor,
+				emoji,
+				startEnd[0].Format(time.Kitchen),
+				startEnd[1].Format(time.Kitchen),
+				event.Summary,
+			)
+
+			if event.ConferenceData != nil {
+				for _, conf := range event.ConferenceData.EntryPoints {
+					if conf.EntryPointType == eventTypeVideo {
+						fmt.Printf("    %s\n", conf.Uri)
+					}
+				}
+			}
+
 		}
 
+		return nil
 	}
+}
 
-	return nil
+func loadTemplate(email string) *config.Template {
+	return &config.Template{CalID: email}
 }
 
 func eventResponseStatus(event *calendar.Event, email string) string {

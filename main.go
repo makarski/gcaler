@@ -1,24 +1,22 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 
+	"github.com/makarski/gcaler/cmd"
 	"github.com/makarski/gcaler/cmd/list"
 	"github.com/makarski/gcaler/cmd/plan"
-	"github.com/makarski/gcaler/config"
 	"github.com/makarski/gcaler/google/auth"
 	gcal "github.com/makarski/gcaler/google/calendar"
-	"github.com/makarski/gcaler/userio"
 )
 
 const (
-	appName = "gcaler"
-	planCmd = "plan"
-	listCmd = "list"
+	appName     = "gcaler"
+	planCmdName = "plan"
+	listCmdName = "list"
 )
 
 var (
@@ -29,13 +27,7 @@ var (
 
 	templatesDir    string
 	credentialsFile string
-
-	// map of commands
-	cmds = map[string]func(gcal.GCalendar, *config.Template) error{
-		planCmd: plan.Plan,
-		listCmd: list.List,
-		"":      list.List,
-	}
+	calId           string
 )
 
 func init() {
@@ -51,6 +43,7 @@ func init() {
 
 	fls.StringVar(&templatesDir, "templates", filepath.Join(wd, "templates"), "Path to templates directory")
 	fls.StringVar(&credentialsFile, "credentials", filepath.Join(wd, "client_secret.json"), "Credentials file name: absolute or relative path")
+	fls.StringVar(&calId, "email", calId, "Optional: email (calendar id) - used for 'list' subcmd")
 
 	fls.Usage = printHelp
 }
@@ -79,12 +72,21 @@ func main() {
 
 	// parse subcommand
 	cmdName := fls.Arg(0)
-	cmd, ok := cmds[cmdName]
-	if !ok {
-		panic(fmt.Sprintf("cmd: `%s` not found", cmdName))
-	}
 
-	template, err := loadTemplate()
+	cmdRun, err := func() (cmd.CmdFunc, error) {
+		switch cmdName {
+		case planCmdName:
+			return plan.Plan(templatesDir), nil
+		case listCmdName, "":
+			if calId == "" {
+				return nil, fmt.Errorf("`-email` option must be provided")
+			}
+
+			return list.List(calId), nil
+		}
+		return nil, fmt.Errorf("cmd: `%s` not found", cmdName)
+	}()
+
 	if err != nil {
 		panic(err)
 	}
@@ -98,36 +100,7 @@ func main() {
 	gCalendar := gcal.NewGCalerndar(&gToken, credCfg)
 
 	// execute
-	if err := cmd(gCalendar, template); err != nil {
+	if err := cmdRun(gCalendar); err != nil {
 		panic(err)
 	}
-}
-
-func loadTemplate() (*config.Template, error) {
-	templateCfgs, err := os.ReadDir(templatesDir)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(templateCfgs) == 0 {
-		fmt.Fprintln(os.Stdout, "No event templates found. Exit.")
-		os.Exit(0)
-	}
-
-	var stdOutTemplate bytes.Buffer
-	fmt.Fprintf(&stdOutTemplate, "> Select a template [0..%d]\n", len(templateCfgs)-1)
-
-	for i, templateFile := range templateCfgs {
-		fmt.Fprintf(&stdOutTemplate, "  * %d: %s\n", i, templateFile.Name())
-	}
-
-	stdOutTemplate.WriteString("\n> Template: ")
-
-	templateIndex, err := userio.UserInInt(&stdOutTemplate)
-	if err != nil {
-		return nil, err
-	}
-
-	templateFile := filepath.Join(templatesDir, templateCfgs[templateIndex].Name())
-	return config.LoadTemplate(templateFile)
 }

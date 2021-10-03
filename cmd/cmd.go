@@ -16,6 +16,10 @@ import (
 
 var Out = os.Stdout
 
+type (
+	CmdFunc func(gcal.GCalendar) error
+)
+
 func CalSrvLocation(
 	ctx context.Context,
 	gCalendar *gcal.GCalendar,
